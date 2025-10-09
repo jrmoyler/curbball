@@ -36,7 +36,7 @@ export const ThrowMeter = ({ value, isCharging, disabled }: ThrowMeterProps) => 
         <div className="relative h-6 bg-muted/30 rounded overflow-hidden border border-border">
           {/* Power fill */}
           <div
-            className={`absolute inset-y-0 left-0 transition-all ${isCharging ? 'duration-75' : 'duration-500'} ease-out bg-primary`}
+            className="absolute inset-y-0 left-0 transition-all duration-100 ease-linear bg-primary"
             style={{
               width: `${value}%`,
             }}
