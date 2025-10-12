@@ -317,14 +317,9 @@ export const GameCanvas = () => {
               const completionBonus = 20;
               setCoins(prev => prev + completionBonus);
               setGameWon(true);
+              setLevel(2); // Advance to level 2 on win
               soundManager.playWin();
               toast.success(`🎉 You Win! +${completionBonus} Bonus Coins!`);
-            } else if (newScore % 30 === 0) {
-              const levelBonus = 10;
-              setCoins(prev => prev + levelBonus);
-              setLevel((prev) => prev + 1);
-              soundManager.playLevelUp();
-              toast.info(`Level ${level + 1}! +${levelBonus} Coins!`);
             }
 
             setTimeout(() => setShowConfetti(false), 3000);
@@ -384,24 +379,48 @@ export const GameCanvas = () => {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
-      {/* Sky background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-secondary to-primary" />
+      {/* Sky background - changes when game is won */}
+      <div className={`absolute inset-0 transition-all duration-1000 ${
+        gameWon 
+          ? 'bg-gradient-to-b from-purple-900 via-pink-600 to-orange-500' 
+          : 'bg-gradient-to-b from-secondary to-primary'
+      }`} />
       
-      {/* Rain effect */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
-        {[...Array(50)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-px h-8 bg-blue-200"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animation: `confetti-fall ${2 + Math.random() * 2}s linear infinite`,
-              animationDelay: `${Math.random() * 2}s`,
-            }}
-          />
-        ))}
-      </div>
+      {/* Rain effect - only show when not won */}
+      {!gameWon && (
+        <div className="absolute inset-0 opacity-30 pointer-events-none">
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-px h-8 bg-blue-200"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animation: `confetti-fall ${2 + Math.random() * 2}s linear infinite`,
+                animationDelay: `${Math.random() * 2}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+      
+      {/* Stars effect - only show when won */}
+      {gameWon && (
+        <div className="absolute inset-0 pointer-events-none">
+          {[...Array(100)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 3}s`,
+                opacity: 0.3 + Math.random() * 0.7,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Game area */}
       <div className="relative h-full flex flex-col">
@@ -431,11 +450,19 @@ export const GameCanvas = () => {
 
         {/* Street and curb */}
         <div className="flex-1 flex items-end">
-          <div className="w-full h-64 relative" style={{ background: "hsl(var(--game-street))" }}>
+          <div className={`w-full h-64 relative transition-all duration-1000 ${
+            gameWon ? 'bg-gradient-to-b from-purple-800 to-purple-950' : ''
+          }`} style={{ 
+            background: gameWon ? undefined : "hsl(var(--game-street))" 
+          }}>
             {/* Curb */}
             <div
-              className={`absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-gray-400 to-gray-600 ${
+              className={`absolute top-0 left-0 right-0 h-4 transition-all duration-1000 ${
                 ballPhase === 'hit' ? 'animate-pulse' : ''
+              } ${
+                gameWon 
+                  ? 'bg-gradient-to-b from-yellow-400 to-yellow-600' 
+                  : 'bg-gradient-to-b from-gray-400 to-gray-600'
               }`}
               style={{ 
                 boxShadow: ballPhase === 'hit' 
@@ -465,7 +492,9 @@ export const GameCanvas = () => {
             </div>
             
             {/* Street lines */}
-            <div className="absolute top-1/2 left-0 right-0 h-1 bg-yellow-400 opacity-80" />
+            <div className={`absolute top-1/2 left-0 right-0 h-1 opacity-80 transition-all duration-1000 ${
+              gameWon ? 'bg-purple-400' : 'bg-yellow-400'
+            }`} />
 
             {/* Obstacles */}
             {obstacles.map((obs) => (
