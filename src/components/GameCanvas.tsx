@@ -271,6 +271,7 @@ export const GameCanvas = () => {
       let coinBonus = 0;
       if (collectedCoin) {
         coinBonus = collectedCoin.value;
+        soundManager.playCoinCollect(); // Play coin collection sound
         setCurbCoins(prev => 
           prev.map(c => c.id === collectedCoin.id ? { ...c, collected: true } : c)
         );

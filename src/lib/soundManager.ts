@@ -159,6 +159,19 @@ class SoundManager {
     });
   }
 
+  // Coin collection sound
+  playCoinCollect() {
+    if (this.isMuted) return;
+    
+    // Play cheerful ascending notes
+    const notes = [659.25, 783.99, 1046.50]; // E5, G5, C6
+    notes.forEach((freq, index) => {
+      setTimeout(() => {
+        this.playTone(freq, 0.12, 'sine', 0.5);
+      }, index * 60);
+    });
+  }
+
   // Mute/unmute toggle
   toggleMute() {
     this.isMuted = !this.isMuted;
