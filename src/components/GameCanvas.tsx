@@ -898,7 +898,7 @@ export const GameCanvas = () => {
           variant="outline"
           size="sm"
           onClick={restartGame}
-          className="absolute top-4 right-4 z-20 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+          className="absolute top-4 right-4 z-20 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground px-3 py-1 text-xs w-20"
         >
           RESTART
         </Button>
