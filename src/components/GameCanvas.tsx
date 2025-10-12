@@ -52,6 +52,7 @@ export const GameCanvas = () => {
   const [isMuted, setIsMuted] = useState(soundManager.getMuted());
   const [gameStarted, setGameStarted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(180); // 3 minutes in seconds
+  const [gameLost, setGameLost] = useState(false);
   const obstacleIdRef = useRef(0);
   const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
@@ -71,13 +72,14 @@ export const GameCanvas = () => {
 
   // Timer countdown
   useEffect(() => {
-    if (!gameStarted || gameWon || timeRemaining <= 0) return;
+    if (!gameStarted || gameWon || timeRemaining <= 0 || gameLost) return;
     
     const interval = setInterval(() => {
       setTimeRemaining(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          toast.error("⏰ Time's up! Game Over!");
+          setGameLost(true);
+          soundManager.playFail();
           return 0;
         }
         return prev - 1;
@@ -85,7 +87,7 @@ export const GameCanvas = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [gameStarted, gameWon, timeRemaining]);
+  }, [gameStarted, gameWon, timeRemaining, gameLost]);
 
   // Handle keyboard controls for horizontal movement
   useEffect(() => {
@@ -270,11 +272,41 @@ export const GameCanvas = () => {
     // Play throw sound
     soundManager.playThrow();
 
+    // Check for collision with obstacles during flight
+    const checkObstacleCollision = () => {
+      return obstacles.some(obs => {
+        const obstacleCenterX = obs.position + (obs.type === 'car' ? 10 : 6); // Approximate center
+        const ballX = ballHorizontalPosition;
+        const distance = Math.abs(obstacleCenterX - ballX);
+        return distance < 8; // Collision threshold
+      });
+    };
+
     // Phase 1: Ball flies to curb (0.8s)
     setBallPhase('flying');
     setBallPosition({ x: ballHorizontalPosition, y: 80 });
     
     setTimeout(() => {
+      // Check for collision mid-flight
+      if (checkObstacleCollision()) {
+        // Ball hits obstacle
+        setBallPhase('missed');
+        soundManager.playFail();
+        setConsecutiveHits(0);
+        toast.error("Hit an obstacle!", {
+          description: "Ball was blocked! Streak reset!",
+        });
+        
+        setTimeout(() => {
+          setBallPosition({ x: ballHorizontalPosition, y: 80 });
+          setBallPhase('ready');
+          setIsBallFlying(false);
+          setIsThrowing(false);
+          setPower(0);
+        }, 600);
+        return;
+      }
+      
       setBallPosition({ x: ballHorizontalPosition, y: 5 }); // Move to curb at current horizontal position
     }, 50);
 
@@ -386,6 +418,7 @@ export const GameCanvas = () => {
     setBallHorizontalPosition(50); // Reset to center
     setCurbCoins([]); // Clear all curb coins
     setGameWon(false);
+    setGameLost(false);
     setObstacles([]);
     setBallPosition({ x: 50, y: 80 });
     setGameStarted(false);
@@ -685,7 +718,7 @@ export const GameCanvas = () => {
 
           {ballPhase === 'ready' && (
             <div className="text-sm text-foreground/70 font-semibold">
-              Success Rate: {currentSuccessChance}% | Streak: {consecutiveHits}
+              Streak: {consecutiveHits}
             </div>
           )}
         </div>
@@ -764,6 +797,38 @@ export const GameCanvas = () => {
             </Button>
           </Card>
           <ConfettiEffect />
+        </div>
+      )}
+
+      {/* Lose modal */}
+      {gameLost && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+          <Card className="p-8 text-center space-y-6 animate-fade-in border-4 border-red-500 bg-card">
+            <div className="text-6xl">💀</div>
+            <h2 className="text-4xl font-bold text-red-500">YOU LOSE</h2>
+            <p className="text-xl text-foreground">
+              Time's Up!
+            </p>
+            <p className="text-xl text-foreground">
+              Final Score: <span className="font-bold text-accent">{score}</span>
+            </p>
+            <p className="text-lg text-muted-foreground">
+              Reached Level {level}
+            </p>
+            <p className="text-xl text-yellow-500 font-bold">
+              Session Coins Earned: {coinsEarned}
+            </p>
+            <p className="text-lg text-yellow-400">
+              Total Coins: {coins}
+            </p>
+            <Button
+              size="lg"
+              onClick={restartGame}
+              className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
+            >
+              TRY AGAIN
+            </Button>
+          </Card>
         </div>
       )}
     </div>
