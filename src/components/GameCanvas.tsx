@@ -36,6 +36,7 @@ export const GameCanvas = () => {
   const [isCharging, setIsCharging] = useState(false);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
+  const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
   const [isMuted, setIsMuted] = useState(soundManager.getMuted());
@@ -54,6 +55,34 @@ export const GameCanvas = () => {
   useEffect(() => {
     localStorage.setItem('game-coins', coins.toString());
   }, [coins]);
+
+  // Handle keyboard controls for horizontal movement
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+      
+      if (e.key === 'ArrowLeft') {
+        setBallHorizontalPosition(prev => Math.max(10, prev - 5));
+      } else if (e.key === 'ArrowRight') {
+        setBallHorizontalPosition(prev => Math.min(90, prev + 5));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isThowing, isBallFlying, ballPhase]);
+
+  const moveLeft = () => {
+    if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+    setBallHorizontalPosition(prev => Math.max(10, prev - 10));
+    soundManager.playClick();
+  };
+
+  const moveRight = () => {
+    if (isThowing || isBallFlying || ballPhase !== 'ready') return;
+    setBallHorizontalPosition(prev => Math.min(90, prev + 10));
+    soundManager.playClick();
+  };
 
   const calculateCoinsEarned = (throwPower: number, isSuccess: boolean) => {
     if (!isSuccess) return 0;
@@ -174,10 +203,10 @@ export const GameCanvas = () => {
 
     // Phase 1: Ball flies to curb (0.8s)
     setBallPhase('flying');
-    setBallPosition({ x: 50, y: 80 });
+    setBallPosition({ x: ballHorizontalPosition, y: 80 });
     
     setTimeout(() => {
-      setBallPosition({ x: 50, y: 5 }); // Move to curb
+      setBallPosition({ x: ballHorizontalPosition, y: 5 }); // Move to curb at current horizontal position
     }, 50);
 
     setTimeout(() => {
@@ -189,7 +218,7 @@ export const GameCanvas = () => {
         if (success) {
           // Phase 3: Ball bounces back successfully (0.8s)
           setBallPhase('bouncing');
-          setBallPosition({ x: 50, y: 80 }); // Bounce back to start
+          setBallPosition({ x: ballHorizontalPosition, y: 80 }); // Bounce back to start position
           soundManager.playSuccess();
           
           setTimeout(() => {
@@ -240,7 +269,7 @@ export const GameCanvas = () => {
         } else {
           // Phase 3: Ball misses and falls (0.6s)
           setBallPhase('missed');
-          setBallPosition({ x: 50, y: -20 }); // Fall down
+          setBallPosition({ x: ballHorizontalPosition, y: -20 }); // Fall down at current position
           soundManager.playFail();
           
           // Reset streak on miss
@@ -252,7 +281,7 @@ export const GameCanvas = () => {
             });
             
             // Reset
-            setBallPosition({ x: 50, y: 80 });
+            setBallPosition({ x: ballHorizontalPosition, y: 80 });
             setBallPhase('ready');
             setIsBallFlying(false);
             setIsThrowing(false);
@@ -269,6 +298,7 @@ export const GameCanvas = () => {
     setLevel(1);
     setCoinsEarned(0);
     setConsecutiveHits(0);
+    setBallHorizontalPosition(50); // Reset to center
     setGameWon(false);
     setObstacles([]);
     setBallPosition({ x: 50, y: 80 });
@@ -342,9 +372,12 @@ export const GameCanvas = () => {
                   : "0 4px 10px rgba(0,0,0,0.5)" 
               }}
             >
-              {/* Impact effect */}
+              {/* Impact effect at ball position */}
               {ballPhase === 'hit' && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <div 
+                  className="absolute top-0 -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: `${ballPosition.x}%` }}
+                >
                   <div className="w-16 h-16 rounded-full bg-orange-500/40 animate-ping" />
                 </div>
               )}
@@ -410,6 +443,35 @@ export const GameCanvas = () => {
 
         {/* Controls */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-4">
+          
+          {/* Movement controls */}
+          {ballPhase === 'ready' && (
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={moveLeft}
+                disabled={isThowing || isBallFlying}
+                className="text-lg font-bold px-6 py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+              >
+                ← LEFT
+              </Button>
+              
+              <div className="text-sm text-foreground/70 font-semibold min-w-[120px] text-center">
+                Position: {Math.round(ballHorizontalPosition)}%
+              </div>
+              
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={moveRight}
+                disabled={isThowing || isBallFlying}
+                className="text-lg font-bold px-6 py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+              >
+                RIGHT →
+              </Button>
+            </div>
+          )}
           
           <Button
             size="lg"
