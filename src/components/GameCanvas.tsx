@@ -282,9 +282,35 @@ export const GameCanvas = () => {
       });
     };
 
-    // Phase 1: Ball flies to curb (0.8s)
+    // Phase 1: Ball flies to curb - speed based on power
+    // Weak throws (0-40): slower, lower arc
+    // Medium throws (40-70): moderate speed
+    // Strong throws (70-100): faster, higher arc
+    
+    const flightDuration = throwPower < 40 ? 1200 : throwPower < 70 ? 900 : 600; // ms
+    const arcHeight = throwPower < 40 ? 60 : throwPower < 70 ? 75 : 85; // max y position during arc
+    
     setBallPhase('flying');
     setBallPosition({ x: ballHorizontalPosition, y: 80 });
+    
+    // Animate ball arc
+    const startTime = Date.now();
+    const animateBallFlight = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / flightDuration, 1);
+      
+      // Parabolic arc calculation
+      const yProgress = 1 - Math.pow(1 - progress, 2); // Ease out quad for y
+      const arcY = 80 - (yProgress * 75) + (Math.sin(progress * Math.PI) * (arcHeight - 80));
+      
+      setBallPosition({ x: ballHorizontalPosition, y: arcY });
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateBallFlight);
+      }
+    };
+    
+    requestAnimationFrame(animateBallFlight);
     
     setTimeout(() => {
       // Check for collision mid-flight
@@ -308,7 +334,7 @@ export const GameCanvas = () => {
       }
       
       setBallPosition({ x: ballHorizontalPosition, y: 5 }); // Move to curb at current horizontal position
-    }, 50);
+    }, flightDuration * 0.6);
 
     setTimeout(() => {
       // Phase 2: Ball hits curb (0.3s)
@@ -406,7 +432,7 @@ export const GameCanvas = () => {
           }, 600);
         }
       }, 300);
-    }, 800);
+    }, flightDuration * 0.6 + 800);
   };
 
   const restartGame = () => {
