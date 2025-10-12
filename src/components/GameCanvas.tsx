@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfettiEffect } from "./ConfettiEffect";
 import { ThrowMeter } from "./ThrowMeter";
+import { CoinDisplay } from "./CoinDisplay";
+import { FloatingCoins } from "./FloatingCoins";
+import { CoinParticle } from "./CoinParticle";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
 import { Volume2, VolumeX } from "lucide-react";
@@ -17,6 +20,15 @@ interface Obstacle {
 export const GameCanvas = () => {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
+  const [coins, setCoins] = useState(() => {
+    const saved = localStorage.getItem('game-coins');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [coinsEarned, setCoinsEarned] = useState(0);
+  const [showFloatingCoins, setShowFloatingCoins] = useState(false);
+  const [floatingCoinAmount, setFloatingCoinAmount] = useState(0);
+  const [coinParticles, setCoinParticles] = useState<Array<{ id: number }>>([]);
+  const [consecutiveHits, setConsecutiveHits] = useState(0);
   const [isThowing, setIsThrowing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [gameWon, setGameWon] = useState(false);
@@ -30,12 +42,49 @@ export const GameCanvas = () => {
   const obstacleIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
   const chargeSoundIntervalRef = useRef<number | null>(null);
+  const particleIdRef = useRef(0);
 
   const targetScore = 100;
   const baseSuccessChance = 45;
   const successChanceDecrease = 5;
   
   const currentSuccessChance = Math.max(30, baseSuccessChance - (level - 1) * successChanceDecrease);
+
+  // Persist coins to localStorage
+  useEffect(() => {
+    localStorage.setItem('game-coins', coins.toString());
+  }, [coins]);
+
+  const calculateCoinsEarned = (throwPower: number, isSuccess: boolean) => {
+    if (!isSuccess) return 0;
+
+    const isPerfectTiming = throwPower >= 60 && throwPower <= 80;
+    let baseCoins = 2; // Base coins for any successful throw
+
+    // Power-based bonus (1-5 coins based on how close to sweet spot)
+    if (isPerfectTiming) {
+      baseCoins = 5; // Perfect timing gives maximum coins
+    } else if (throwPower >= 50 && throwPower <= 90) {
+      baseCoins = 3; // Good timing gives medium coins
+    }
+
+    // Streak bonus
+    const streakBonus = Math.floor(consecutiveHits / 3); // +1 coin every 3 consecutive hits
+    
+    return baseCoins + streakBonus;
+  };
+
+  const spawnCoinParticles = (amount: number) => {
+    const newParticles = Array.from({ length: Math.min(amount, 8) }, () => ({
+      id: particleIdRef.current++,
+    }));
+    setCoinParticles(newParticles);
+    
+    // Clear particles after animation
+    setTimeout(() => {
+      setCoinParticles([]);
+    }, 2000);
+  };
 
   useEffect(() => {
     // Spawn obstacles randomly
@@ -146,19 +195,37 @@ export const GameCanvas = () => {
           setTimeout(() => {
             const newScore = score + 10;
             setScore(newScore);
+            
+            // Calculate and award coins
+            const earnedCoins = calculateCoinsEarned(throwPower, true);
+            setCoins(prev => prev + earnedCoins);
+            setCoinsEarned(prev => prev + earnedCoins);
+            
+            // Show floating coins animation
+            setFloatingCoinAmount(earnedCoins);
+            setShowFloatingCoins(true);
+            spawnCoinParticles(earnedCoins);
+            
+            // Update streak
+            setConsecutiveHits(prev => prev + 1);
+            
             setShowConfetti(true);
-            toast.success(`+10 Points! Perfect catch!`, {
-              description: `Score: ${newScore}/${targetScore}`,
+            toast.success(`+10 Points! +${earnedCoins} Coins!`, {
+              description: `Score: ${newScore}/${targetScore} | Streak: ${consecutiveHits + 1}`,
             });
 
             if (newScore >= targetScore) {
+              const completionBonus = 20;
+              setCoins(prev => prev + completionBonus);
               setGameWon(true);
               soundManager.playWin();
-              toast.success("🎉 You Win! Champion!");
+              toast.success(`🎉 You Win! +${completionBonus} Bonus Coins!`);
             } else if (newScore % 30 === 0) {
+              const levelBonus = 10;
+              setCoins(prev => prev + levelBonus);
               setLevel((prev) => prev + 1);
               soundManager.playLevelUp();
-              toast.info(`Level ${level + 1}! Difficulty increased!`);
+              toast.info(`Level ${level + 1}! +${levelBonus} Coins!`);
             }
 
             setTimeout(() => setShowConfetti(false), 3000);
@@ -176,9 +243,12 @@ export const GameCanvas = () => {
           setBallPosition({ x: 50, y: -20 }); // Fall down
           soundManager.playFail();
           
+          // Reset streak on miss
+          setConsecutiveHits(0);
+          
           setTimeout(() => {
             toast.error("Miss! Ball didn't bounce back", {
-              description: "Try timing your power better",
+              description: "Try timing your power better. Streak reset!",
             });
             
             // Reset
@@ -197,6 +267,8 @@ export const GameCanvas = () => {
     soundManager.playClick();
     setScore(0);
     setLevel(1);
+    setCoinsEarned(0);
+    setConsecutiveHits(0);
     setGameWon(false);
     setObstacles([]);
     setBallPosition({ x: 50, y: 80 });
@@ -233,24 +305,28 @@ export const GameCanvas = () => {
       {/* Game area */}
       <div className="relative h-full flex flex-col">
         {/* HUD */}
-        <Card className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-6 py-3 bg-card/90 backdrop-blur-sm border-2 border-primary">
-          <div className="flex items-center gap-8">
-            <div className="text-center">
-              <div className="text-xs text-muted-foreground font-semibold">SCORE</div>
-              <div className="text-3xl font-bold text-primary">{score}</div>
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
+          <Card className="px-6 py-3 bg-card/90 backdrop-blur-sm border-2 border-primary">
+            <div className="flex items-center gap-8">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground font-semibold">SCORE</div>
+                <div className="text-3xl font-bold text-primary">{score}</div>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground font-semibold">LEVEL</div>
+                <div className="text-3xl font-bold text-accent">{level}</div>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground font-semibold">TARGET</div>
+                <div className="text-3xl font-bold text-foreground">{targetScore}</div>
+              </div>
             </div>
-            <div className="h-8 w-px bg-border" />
-            <div className="text-center">
-              <div className="text-xs text-muted-foreground font-semibold">LEVEL</div>
-              <div className="text-3xl font-bold text-accent">{level}</div>
-            </div>
-            <div className="h-8 w-px bg-border" />
-            <div className="text-center">
-              <div className="text-xs text-muted-foreground font-semibold">TARGET</div>
-              <div className="text-3xl font-bold text-foreground">{targetScore}</div>
-            </div>
-          </div>
-        </Card>
+          </Card>
+          
+          <CoinDisplay coins={coins} />
+        </div>
 
         {/* Street and curb */}
         <div className="flex-1 flex items-end">
@@ -352,7 +428,7 @@ export const GameCanvas = () => {
 
           {ballPhase === 'ready' && (
             <div className="text-sm text-foreground/70 font-semibold">
-              Success Rate: {currentSuccessChance}% (Sweet spot: 60-80 power)
+              Success Rate: {currentSuccessChance}% | Streak: {consecutiveHits}
             </div>
           )}
         </div>
@@ -380,6 +456,29 @@ export const GameCanvas = () => {
 
       {/* Confetti */}
       {showConfetti && <ConfettiEffect />}
+      
+      {/* Floating coins animation */}
+      {showFloatingCoins && (
+        <FloatingCoins 
+          amount={floatingCoinAmount} 
+          onComplete={() => setShowFloatingCoins(false)}
+        />
+      )}
+      
+      {/* Coin particles */}
+      {coinParticles.map((particle, index) => (
+        <CoinParticle
+          key={particle.id}
+          startX={window.innerWidth / 2}
+          startY={window.innerHeight * 0.2}
+          targetX={window.innerWidth / 2 + 200}
+          targetY={40}
+          delay={index * 100}
+          onComplete={() => {
+            setCoinParticles(prev => prev.filter(p => p.id !== particle.id));
+          }}
+        />
+      ))}
 
       {/* Win modal */}
       {gameWon && (
@@ -392,6 +491,12 @@ export const GameCanvas = () => {
             </p>
             <p className="text-lg text-muted-foreground">
               Completed at Level {level}
+            </p>
+            <p className="text-xl text-yellow-500 font-bold">
+              Session Coins Earned: {coinsEarned}
+            </p>
+            <p className="text-lg text-yellow-400">
+              Total Coins: {coins}
             </p>
             <Button
               size="lg"
