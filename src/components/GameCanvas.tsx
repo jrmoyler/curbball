@@ -50,6 +50,8 @@ export const GameCanvas = () => {
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
   const [isMuted, setIsMuted] = useState(soundManager.getMuted());
+  const [gameStarted, setGameStarted] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(180); // 3 minutes in seconds
   const obstacleIdRef = useRef(0);
   const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
@@ -66,6 +68,34 @@ export const GameCanvas = () => {
   useEffect(() => {
     localStorage.setItem('game-coins', coins.toString());
   }, [coins]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (!gameStarted || gameWon || timeRemaining <= 0) return;
+    
+    const interval = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          toast.error("⏰ Time's up! Game Over!");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameStarted, gameWon, timeRemaining]);
+
+  // Voice feedback for scoring
+  const playVoiceFeedback = (text: string) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.2;
+      utterance.pitch = 1.1;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   // Handle keyboard controls for horizontal movement
   useEffect(() => {
@@ -225,7 +255,7 @@ export const GameCanvas = () => {
   };
 
   const releaseThrow = () => {
-    if (!isCharging) return;
+    if (!isCharging || !gameStarted) return;
     
     setIsCharging(false);
     if (chargeIntervalRef.current) {
@@ -241,7 +271,7 @@ export const GameCanvas = () => {
   };
 
   const throwBall = (throwPower: number) => {
-    if (isThowing || isBallFlying) return;
+    if (isThowing || isBallFlying || !gameStarted) return;
 
     setIsThrowing(true);
     setIsBallFlying(true);
@@ -309,6 +339,7 @@ export const GameCanvas = () => {
             setShowConfetti(true);
             
             const coinMessage = coinBonus > 0 ? ` +${coinBonus} Bonus Coins!` : '';
+            playVoiceFeedback("Good Shot");
             toast.success(`+10 Points! +${earnedCoins} Coins!${coinMessage}`, {
               description: `Score: ${newScore}/${targetScore} | Streak: ${consecutiveHits + 1}`,
             });
@@ -368,6 +399,8 @@ export const GameCanvas = () => {
     setGameWon(false);
     setObstacles([]);
     setBallPosition({ x: 50, y: 80 });
+    setGameStarted(false);
+    setTimeRemaining(180);
     toast.info("Game restarted! Good luck!");
   };
 
@@ -377,8 +410,64 @@ export const GameCanvas = () => {
     soundManager.playClick();
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="relative w-full h-screen overflow-hidden">
+      {/* Starting Screen */}
+      {!gameStarted && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md mx-4 border border-white/20 shadow-2xl">
+            <h1 className="text-4xl font-bold text-white mb-6 text-center">Curb Ball Challenge</h1>
+            
+            <div className="space-y-4 text-white/90 mb-8">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">🎯</div>
+                <div>
+                  <h3 className="font-semibold text-lg">How to Play</h3>
+                  <p className="text-sm">Click and drag to aim, then release to throw the ball at the curb</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">💰</div>
+                <div>
+                  <h3 className="font-semibold text-lg">Collect Coins</h3>
+                  <p className="text-sm">Hit the glowing coins on the curb for bonus points</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">⏱️</div>
+                <div>
+                  <h3 className="font-semibold text-lg">Beat the Clock</h3>
+                  <p className="text-sm">Score 100 points in 3 minutes to win!</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">🎪</div>
+                <div>
+                  <h3 className="font-semibold text-lg">Avoid Obstacles</h3>
+                  <p className="text-sm">Watch out for moving obstacles that block your shots</p>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setGameStarted(true)}
+              className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all transform hover:scale-105 shadow-lg"
+            >
+              Start Game
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sky background - changes when game is won */}
       <div className={`absolute inset-0 transition-all duration-1000 ${
         gameWon 
@@ -441,6 +530,13 @@ export const GameCanvas = () => {
               <div className="text-center">
                 <div className="text-xs text-muted-foreground font-semibold">TARGET</div>
                 <div className="text-3xl font-bold text-foreground">{targetScore}</div>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground font-semibold">TIME</div>
+                <div className={`text-3xl font-bold ${
+                  timeRemaining < 30 ? 'text-red-500 animate-pulse' : 'text-foreground'
+                }`}>{formatTime(timeRemaining)}</div>
               </div>
             </div>
           </Card>
