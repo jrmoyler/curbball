@@ -896,6 +896,7 @@ export const GameCanvas = () => {
         {/* Restart button */}
         <Button
           variant="outline"
+          size="sm"
           onClick={restartGame}
           className="absolute top-4 right-4 z-20 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground"
         >
