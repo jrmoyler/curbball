@@ -6,6 +6,7 @@ import { ThrowMeter } from "./ThrowMeter";
 import { CoinDisplay } from "./CoinDisplay";
 import { FloatingCoins } from "./FloatingCoins";
 import { CoinParticle } from "./CoinParticle";
+import { HoveringCoin } from "./HoveringCoin";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
 import { Volume2, VolumeX } from "lucide-react";
@@ -15,6 +16,13 @@ interface Obstacle {
   type: "car" | "bike";
   position: number;
   speed: number;
+}
+
+interface CurbCoin {
+  id: number;
+  position: number; // 0-100 percentage horizontal position
+  value: number; // coin value (5, 10, or 15)
+  collected: boolean;
 }
 
 export const GameCanvas = () => {
@@ -35,12 +43,14 @@ export const GameCanvas = () => {
   const [power, setPower] = useState(0);
   const [isCharging, setIsCharging] = useState(false);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
+  const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
   const [isMuted, setIsMuted] = useState(soundManager.getMuted());
   const obstacleIdRef = useRef(0);
+  const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
   const chargeSoundIntervalRef = useRef<number | null>(null);
   const particleIdRef = useRef(0);
@@ -133,6 +143,32 @@ export const GameCanvas = () => {
   }, []);
 
   useEffect(() => {
+    // Spawn curb coins randomly
+    const spawnCoinInterval = setInterval(() => {
+      // Spawn coin if there are less than 3 coins on the curb
+      setCurbCoins((prev) => {
+        if (prev.filter(c => !c.collected).length >= 3) return prev;
+        
+        if (Math.random() > 0.6) {
+          const coinValues = [5, 10, 15]; // Different coin values
+          const value = coinValues[Math.floor(Math.random() * coinValues.length)];
+          
+          const newCoin: CurbCoin = {
+            id: curbCoinIdRef.current++,
+            position: 15 + Math.random() * 70, // Random position between 15-85%
+            value: value,
+            collected: false,
+          };
+          return [...prev, newCoin];
+        }
+        return prev;
+      });
+    }, 3000);
+
+    return () => clearInterval(spawnCoinInterval);
+  }, []);
+
+  useEffect(() => {
     // Move obstacles
     const moveInterval = setInterval(() => {
       setObstacles((prev) =>
@@ -214,6 +250,24 @@ export const GameCanvas = () => {
       setBallPhase('hit');
       soundManager.playImpact();
       
+      // Check for coin collection
+      const collectedCoin = curbCoins.find(
+        coin => !coin.collected && Math.abs(coin.position - ballHorizontalPosition) < 8
+      );
+      
+      let coinBonus = 0;
+      if (collectedCoin) {
+        coinBonus = collectedCoin.value;
+        setCurbCoins(prev => 
+          prev.map(c => c.id === collectedCoin.id ? { ...c, collected: true } : c)
+        );
+        
+        // Remove collected coin after animation
+        setTimeout(() => {
+          setCurbCoins(prev => prev.filter(c => c.id !== collectedCoin.id));
+        }, 500);
+      }
+      
       setTimeout(() => {
         if (success) {
           // Phase 3: Ball bounces back successfully (0.8s)
@@ -225,8 +279,8 @@ export const GameCanvas = () => {
             const newScore = score + 10;
             setScore(newScore);
             
-            // Calculate and award coins
-            const earnedCoins = calculateCoinsEarned(throwPower, true);
+            // Calculate and award coins (including coin bonus)
+            const earnedCoins = calculateCoinsEarned(throwPower, true) + coinBonus;
             setCoins(prev => prev + earnedCoins);
             setCoinsEarned(prev => prev + earnedCoins);
             
@@ -239,7 +293,9 @@ export const GameCanvas = () => {
             setConsecutiveHits(prev => prev + 1);
             
             setShowConfetti(true);
-            toast.success(`+10 Points! +${earnedCoins} Coins!`, {
+            
+            const coinMessage = coinBonus > 0 ? ` +${coinBonus} Bonus Coins!` : '';
+            toast.success(`+10 Points! +${earnedCoins} Coins!${coinMessage}`, {
               description: `Score: ${newScore}/${targetScore} | Streak: ${consecutiveHits + 1}`,
             });
 
@@ -299,6 +355,7 @@ export const GameCanvas = () => {
     setCoinsEarned(0);
     setConsecutiveHits(0);
     setBallHorizontalPosition(50); // Reset to center
+    setCurbCoins([]); // Clear all curb coins
     setGameWon(false);
     setObstacles([]);
     setBallPosition({ x: 50, y: 80 });
@@ -381,6 +438,16 @@ export const GameCanvas = () => {
                   <div className="w-16 h-16 rounded-full bg-orange-500/40 animate-ping" />
                 </div>
               )}
+              
+              {/* Hovering coins over curb */}
+              {curbCoins.map((coin) => (
+                <HoveringCoin
+                  key={coin.id}
+                  position={coin.position}
+                  value={coin.value}
+                  collected={coin.collected}
+                />
+              ))}
             </div>
             
             {/* Street lines */}
