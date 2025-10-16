@@ -772,6 +772,30 @@ export const GameCanvas = () => {
             <div className={`absolute top-1/2 left-0 right-0 h-1 opacity-80 transition-all duration-1000 ${
               gameWon ? 'bg-purple-400' : 'bg-yellow-400'
             }`} />
+            
+            {/* Position markers on opposite side of street */}
+            <div className="absolute bottom-4 left-0 right-0 flex justify-around px-8">
+              {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((pos) => (
+                <div
+                  key={pos}
+                  className="relative flex flex-col items-center"
+                  style={{ left: `${pos - 50}%` }}
+                >
+                  <div className={`w-1 h-3 rounded-full transition-all ${
+                    Math.abs(ballHorizontalPosition - pos) < 5 && ballPhase === 'ready'
+                      ? 'bg-green-400 h-6 shadow-[0_0_10px_rgba(74,222,128,0.8)]'
+                      : 'bg-white/40'
+                  }`} />
+                  <div className={`text-[8px] font-bold mt-0.5 transition-all ${
+                    Math.abs(ballHorizontalPosition - pos) < 5 && ballPhase === 'ready'
+                      ? 'text-green-400 scale-110'
+                      : 'text-white/50'
+                  }`}>
+                    {pos}
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {/* Obstacles */}
             {obstacles.map((obs) => (
