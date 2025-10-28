@@ -10,6 +10,7 @@ import { HoveringCoin } from "./HoveringCoin";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
 import { Volume2, VolumeX } from "lucide-react";
+import { fbInstant } from "@/lib/fbInstantManager";
 
 interface Obstacle {
   id: number;
@@ -67,9 +68,27 @@ export const GameCanvas = () => {
   
   const currentSuccessChance = Math.max(30, baseSuccessChance - (level - 1) * successChanceDecrease);
 
-  // Persist coins to localStorage
+  // Load player data from FBInstant on mount
+  useEffect(() => {
+    const loadPlayerData = async () => {
+      if (fbInstant.isFBInstant()) {
+        const data = await fbInstant.getPlayerDataAsync(['coins', 'highScore']);
+        if (data.coins) {
+          setCoins(data.coins);
+        }
+      }
+    };
+    loadPlayerData();
+  }, []);
+
+  // Persist coins to localStorage and FBInstant
   useEffect(() => {
     localStorage.setItem('game-coins', coins.toString());
+    
+    // Also save to FBInstant if available
+    if (fbInstant.isFBInstant()) {
+      fbInstant.setPlayerDataAsync({ coins });
+    }
   }, [coins]);
 
   // Timer countdown
@@ -499,7 +518,7 @@ export const GameCanvas = () => {
     }, flightDuration * 0.6 + 800);
   };
 
-  const restartGame = () => {
+  const restartGame = async () => {
     soundManager.playClick();
     setScore(0);
     setLevel(1);
@@ -514,6 +533,14 @@ export const GameCanvas = () => {
     setGameStarted(false);
     setTimeRemaining(180);
     toast.info("Game restarted! Good luck!");
+    
+    // Save game state to FBInstant if available
+    if (fbInstant.isFBInstant()) {
+      await fbInstant.setPlayerDataAsync({
+        coins: coins,
+        highScore: score > (await fbInstant.getPlayerDataAsync(['highScore'])).highScore || 0 ? score : (await fbInstant.getPlayerDataAsync(['highScore'])).highScore
+      });
+    }
   };
 
   const toggleMute = () => {
