@@ -9,6 +9,7 @@ import { CoinParticle } from "./CoinParticle";
 import { HoveringCoin } from "./HoveringCoin";
 import { ShareButton } from "./ShareButton";
 import { Leaderboard } from "./Leaderboard";
+import { RewardedAdButton } from "./RewardedAdButton";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
 import { Volume2, VolumeX } from "lucide-react";
@@ -36,6 +37,8 @@ export const GameCanvas = () => {
   const [highScore, setHighScore] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [gamesPlayed, setGamesPlayed] = useState(0);
+  const [preloadedInterstitial, setPreloadedInterstitial] = useState<any>(null);
   const [showFloatingCoins, setShowFloatingCoins] = useState(false);
   const [floatingCoinAmount, setFloatingCoinAmount] = useState(0);
   const [coinParticles, setCoinParticles] = useState<Array<{ id: number }>>([]);
@@ -73,15 +76,22 @@ export const GameCanvas = () => {
   useEffect(() => {
     const loadPlayerData = async () => {
       if (fbInstant.isFBInstant()) {
-        const data = await fbInstant.getPlayerDataAsync(['coins', 'highScore']);
+        const data = await fbInstant.getPlayerDataAsync(['coins', 'highScore', 'gamesPlayed']);
         setCoins(data.coins || 0);
         setHighScore(data.highScore || 0);
+        setGamesPlayed(data.gamesPlayed || 0);
+        
+        // Preload first interstitial ad
+        const interstitial = await fbInstant.preloadInterstitialAdAsync();
+        setPreloadedInterstitial(interstitial);
       } else {
         // Fallback to localStorage
         const savedCoins = localStorage.getItem('game-coins');
         const savedHighScore = localStorage.getItem('game-highScore');
+        const savedGamesPlayed = localStorage.getItem('game-gamesplayed');
         setCoins(savedCoins ? parseInt(savedCoins) : 0);
         setHighScore(savedHighScore ? parseInt(savedHighScore) : 0);
+        setGamesPlayed(savedGamesPlayed ? parseInt(savedGamesPlayed) : 0);
       }
     };
     loadPlayerData();
@@ -91,11 +101,12 @@ export const GameCanvas = () => {
   useEffect(() => {
     localStorage.setItem('game-coins', coins.toString());
     localStorage.setItem('game-highScore', highScore.toString());
+    localStorage.setItem('game-gamesplayed', gamesPlayed.toString());
     
     if (fbInstant.isFBInstant()) {
-      fbInstant.setPlayerDataAsync({ coins, highScore });
+      fbInstant.setPlayerDataAsync({ coins, highScore, gamesPlayed });
     }
-  }, [coins, highScore]);
+  }, [coins, highScore, gamesPlayed]);
 
   // Timer countdown
   useEffect(() => {
@@ -537,6 +548,27 @@ export const GameCanvas = () => {
       }
     }
     
+    const newGamesPlayed = gamesPlayed + 1;
+    setGamesPlayed(newGamesPlayed);
+    
+    // Show interstitial ad every 3rd game (frequency cap)
+    if (fbInstant.isFBInstant() && newGamesPlayed % 3 === 0) {
+      try {
+        if (preloadedInterstitial) {
+          await preloadedInterstitial.showAsync();
+          console.log('Interstitial ad shown');
+        } else {
+          await fbInstant.showInterstitialAdAsync();
+        }
+        
+        // Preload next interstitial
+        const nextInterstitial = await fbInstant.preloadInterstitialAdAsync();
+        setPreloadedInterstitial(nextInterstitial);
+      } catch (error) {
+        console.error('Error showing interstitial:', error);
+      }
+    }
+    
     setScore(0);
     setLevel(1);
     setCoinsEarned(0);
@@ -551,6 +583,10 @@ export const GameCanvas = () => {
     setTimeRemaining(180);
     setShowLeaderboard(false);
     toast.info("Game restarted! Good luck!");
+  };
+
+  const handleRewardEarned = (amount: number) => {
+    setCoins(coins + amount);
   };
 
   const toggleMute = () => {
@@ -1016,27 +1052,31 @@ export const GameCanvas = () => {
               Total Coins: {coins}
             </p>
             
-            <div className="flex gap-2 justify-center">
-              <Button
-                size="lg"
-                onClick={restartGame}
-                className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
-              >
-                PLAY AGAIN
-              </Button>
+            <div className="flex flex-col gap-3 items-center">
+              <div className="flex gap-2 justify-center flex-wrap">
+                <Button
+                  size="lg"
+                  onClick={restartGame}
+                  className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
+                >
+                  PLAY AGAIN
+                </Button>
+                {fbInstant.isFBInstant() && (
+                  <ShareButton score={score} coins={coinsEarned} />
+                )}
+              </div>
+              
               {fbInstant.isFBInstant() && (
-                <ShareButton score={score} coins={coinsEarned} />
+                <button
+                  onClick={() => setShowLeaderboard(!showLeaderboard)}
+                  className="text-primary underline mt-2"
+                >
+                  {showLeaderboard ? "Hide" : "Show"} Leaderboard
+                </button>
               )}
+              
+              <RewardedAdButton onRewardEarned={handleRewardEarned} />
             </div>
-            
-            {fbInstant.isFBInstant() && (
-              <button
-                onClick={() => setShowLeaderboard(!showLeaderboard)}
-                className="text-primary underline mt-2"
-              >
-                {showLeaderboard ? "Hide" : "Show"} Leaderboard
-              </button>
-            )}
           </Card>
           <ConfettiEffect />
         </div>
@@ -1070,27 +1110,31 @@ export const GameCanvas = () => {
               Total Coins: {coins}
             </p>
             
-            <div className="flex gap-2 justify-center">
-              <Button
-                size="lg"
-                onClick={restartGame}
-                className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
-              >
-                TRY AGAIN
-              </Button>
+            <div className="flex flex-col gap-3 items-center">
+              <div className="flex gap-2 justify-center flex-wrap">
+                <Button
+                  size="lg"
+                  onClick={restartGame}
+                  className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
+                >
+                  TRY AGAIN
+                </Button>
+                {fbInstant.isFBInstant() && (
+                  <ShareButton score={score} coins={coinsEarned} />
+                )}
+              </div>
+              
               {fbInstant.isFBInstant() && (
-                <ShareButton score={score} coins={coinsEarned} />
+                <button
+                  onClick={() => setShowLeaderboard(!showLeaderboard)}
+                  className="text-primary underline mt-2"
+                >
+                  {showLeaderboard ? "Hide" : "Show"} Leaderboard
+                </button>
               )}
+              
+              <RewardedAdButton onRewardEarned={handleRewardEarned} />
             </div>
-            
-            {fbInstant.isFBInstant() && (
-              <button
-                onClick={() => setShowLeaderboard(!showLeaderboard)}
-                className="text-primary underline mt-2"
-              >
-                {showLeaderboard ? "Hide" : "Show"} Leaderboard
-              </button>
-            )}
           </Card>
         </div>
       )}

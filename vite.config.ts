@@ -15,4 +15,26 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Bundle size optimization for Facebook Instant Games (< 5MB requirement)
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['lucide-react', '@radix-ui/react-toast', '@radix-ui/react-dialog'],
+        },
+      },
+    },
+    // Compress and optimize
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: mode === 'production',
+        drop_debugger: mode === 'production',
+      },
+    },
+    // Set chunk size warning limit to 1MB
+    chunkSizeWarningLimit: 1000,
+  },
 }));

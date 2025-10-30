@@ -248,6 +248,77 @@ class FBInstantManager {
       return [];
     }
   }
+
+  /**
+   * Load and show rewarded video ad
+   */
+  async showRewardedVideoAsync(): Promise<boolean> {
+    if (!this.isSupported || !this.isInitialized) {
+      console.log('Rewarded video not available in web mode');
+      return false;
+    }
+
+    try {
+      const rewardedVideo = await window.FBInstant.getRewardedVideoAsync(
+        'REWARDED_VIDEO_PLACEMENT_ID' // Replace with your placement ID from Facebook
+      );
+      
+      await rewardedVideo.loadAsync();
+      await rewardedVideo.showAsync();
+      
+      console.log('Rewarded video shown successfully');
+      return true;
+    } catch (error) {
+      console.error('Failed to show rewarded video:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Load and show interstitial ad
+   */
+  async showInterstitialAdAsync(): Promise<boolean> {
+    if (!this.isSupported || !this.isInitialized) {
+      console.log('Interstitial ad not available in web mode');
+      return false;
+    }
+
+    try {
+      const interstitial = await window.FBInstant.getInterstitialAdAsync(
+        'INTERSTITIAL_PLACEMENT_ID' // Replace with your placement ID from Facebook
+      );
+      
+      await interstitial.loadAsync();
+      await interstitial.showAsync();
+      
+      console.log('Interstitial ad shown successfully');
+      return true;
+    } catch (error) {
+      console.error('Failed to show interstitial ad:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Preload interstitial ad for later use
+   */
+  async preloadInterstitialAdAsync(): Promise<any> {
+    if (!this.isSupported || !this.isInitialized) {
+      return null;
+    }
+
+    try {
+      const interstitial = await window.FBInstant.getInterstitialAdAsync(
+        'INTERSTITIAL_PLACEMENT_ID'
+      );
+      await interstitial.loadAsync();
+      console.log('Interstitial ad preloaded');
+      return interstitial;
+    } catch (error) {
+      console.error('Failed to preload interstitial ad:', error);
+      return null;
+    }
+  }
 }
 
 // Export singleton instance
