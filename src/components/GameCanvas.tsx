@@ -10,6 +10,7 @@ import { HoveringCoin } from "./HoveringCoin";
 import { ShareButton } from "./ShareButton";
 import { Leaderboard } from "./Leaderboard";
 import { RewardedAdButton } from "./RewardedAdButton";
+import { Background3D } from "./Background3D";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
 import { Volume2, VolumeX } from "lucide-react";
@@ -603,80 +604,23 @@ export const GameCanvas = () => {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
+      {/* 3D Background */}
+      {!gameWon && <Background3D />}
+
+      {/* Fallback gradient for win state */}
+      {gameWon && (
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-900 via-pink-600 to-orange-500" />
+      )}
+
       {/* Starting Screen */}
       {!gameStarted && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900">
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md mx-4 border border-white/20 shadow-2xl">
-            <h1 className="text-4xl font-bold text-white mb-6 text-center">Curb Ball Challenge</h1>
-            
-            <div className="space-y-4 text-white/90 mb-8">
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">🎯</div>
-                <div>
-                  <h3 className="font-semibold text-lg">How to Play</h3>
-                  <p className="text-sm">Click and drag to aim, then release to throw the ball at the curb</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">💰</div>
-                <div>
-                  <h3 className="font-semibold text-lg">Collect Coins</h3>
-                  <p className="text-sm">Hit the glowing coins on the curb for bonus points</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">⏱️</div>
-                <div>
-                  <h3 className="font-semibold text-lg">Beat the Clock</h3>
-                  <p className="text-sm">Score 100 points in 3 minutes to win!</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">🎪</div>
-                <div>
-                  <h3 className="font-semibold text-lg">Avoid Obstacles</h3>
-                  <p className="text-sm">Watch out for moving obstacles that block your shots</p>
-                </div>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => setGameStarted(true)}
-              className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all transform hover:scale-105 shadow-lg"
-            >
-              Start Game
-            </button>
-          </div>
+...
         </div>
       )}
-
-      {/* Sky background */}
-      <div className={`absolute inset-0 transition-all duration-1000 ${
-        gameWon 
-          ? 'bg-gradient-to-b from-purple-900 via-pink-600 to-orange-500' 
-          : 'bg-gradient-to-b from-sky-400 via-sky-300 to-sky-200'
-      }`} />
       
-      {/* Sun */}
-      {!gameWon && (
-        <div className="absolute top-12 right-24 w-24 h-24 rounded-full bg-yellow-300 shadow-[0_0_60px_rgba(253,224,71,0.6)]" />
-      )}
-      
-      {/* Clouds */}
-      {!gameWon && (
-        <>
-          <div className="absolute top-16 left-[10%] w-32 h-16 bg-white rounded-full opacity-80 blur-sm" />
-          <div className="absolute top-24 left-[15%] w-24 h-12 bg-white rounded-full opacity-70 blur-sm" />
-          <div className="absolute top-20 right-[30%] w-40 h-20 bg-white rounded-full opacity-75 blur-sm" />
-          <div className="absolute top-32 right-[35%] w-28 h-14 bg-white rounded-full opacity-65 blur-sm" />
-        </>
-      )}
-      
-      {/* Houses background */}
-      {!gameWon && (
+      {/* Houses background (hidden now, 3D version used) */}
+      {false && !gameWon && (
         <div className="absolute bottom-64 left-0 right-0 h-64 flex items-end justify-around px-8">
           {/* House 1 */}
           <div className="relative">
