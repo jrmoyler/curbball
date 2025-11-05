@@ -1,6 +1,7 @@
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Sky, Cloud } from '@react-three/drei';
-import { Suspense } from 'react';
+import { Suspense, useRef } from 'react';
+import * as THREE from 'three';
 
 // 3D House component
 function House({ position }: { position: [number, number, number] }) {
@@ -92,9 +93,21 @@ function Car({ position }: { position: [number, number, number] }) {
 }
 
 // 3D Bicycle with Rider component
-function BikeWithRider({ position }: { position: [number, number, number] }) {
+function BikeWithRider({ position, speed = 0.05 }: { position: [number, number, number]; speed?: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.position.z += speed;
+      // Reset position when bike goes too far
+      if (groupRef.current.position.z > 20) {
+        groupRef.current.position.z = -20;
+      }
+    }
+  });
+  
   return (
-    <group position={position}>
+    <group ref={groupRef} position={position}>
       {/* Bike frame */}
       <mesh position={[0, 0.5, 0]} castShadow>
         <boxGeometry args={[0.8, 0.05, 0.05]} />
@@ -166,9 +179,21 @@ function BikeWithRider({ position }: { position: [number, number, number] }) {
 }
 
 // 3D Scooter component
-function Scooter({ position }: { position: [number, number, number] }) {
+function Scooter({ position, speed = 0.08 }: { position: [number, number, number]; speed?: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.position.z += speed;
+      // Reset position when scooter goes too far
+      if (groupRef.current.position.z > 20) {
+        groupRef.current.position.z = -20;
+      }
+    }
+  });
+  
   return (
-    <group position={position}>
+    <group ref={groupRef} position={position}>
       {/* Deck */}
       <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
         <boxGeometry args={[0.8, 0.05, 0.25]} />
@@ -298,14 +323,14 @@ function Scene() {
       <Car position={[9, 0, -2]} />
       
       {/* Bikes with riders */}
-      <BikeWithRider position={[-8, 0, 3]} />
-      <BikeWithRider position={[7, 0, -8]} />
-      <BikeWithRider position={[-10, 0, -12]} />
+      <BikeWithRider position={[-8, 0, 3]} speed={0.06} />
+      <BikeWithRider position={[7, 0, -8]} speed={0.05} />
+      <BikeWithRider position={[-10, 0, -12]} speed={0.07} />
       
       {/* Scooters */}
-      <Scooter position={[8, 0, 4]} />
-      <Scooter position={[-7, 0, -1]} />
-      <Scooter position={[9, 0, -10]} />
+      <Scooter position={[8, 0, 4]} speed={0.09} />
+      <Scooter position={[-7, 0, -1]} speed={0.08} />
+      <Scooter position={[9, 0, -10]} speed={0.1} />
     </>
   );
 }
