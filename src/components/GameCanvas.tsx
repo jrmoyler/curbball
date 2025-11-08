@@ -30,6 +30,11 @@ interface CurbCoin {
   expiresAt: number; // timestamp when coin should disappear
 }
 
+interface BullseyeTarget {
+  position: number; // 0-100 percentage horizontal position
+  direction: 1 | -1; // 1 for right, -1 for left
+}
+
 export const GameCanvas = () => {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
@@ -50,6 +55,7 @@ export const GameCanvas = () => {
   const [isCharging, setIsCharging] = useState(false);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
+  const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
@@ -254,6 +260,29 @@ export const GameCanvas = () => {
     return () => clearInterval(moveInterval);
   }, []);
 
+  useEffect(() => {
+    // Move bullseye target slowly
+    const moveInterval = setInterval(() => {
+      setBullseyeTarget((prev) => {
+        let newPosition = prev.position + (prev.direction * 0.3); // Slow movement
+        let newDirection = prev.direction;
+        
+        // Bounce at edges
+        if (newPosition >= 85) {
+          newPosition = 85;
+          newDirection = -1;
+        } else if (newPosition <= 15) {
+          newPosition = 15;
+          newDirection = 1;
+        }
+        
+        return { position: newPosition, direction: newDirection };
+      });
+    }, 50);
+
+    return () => clearInterval(moveInterval);
+  }, []);
+
   const calculateSuccess = (throwPower: number) => {
     // Success rate increases if power is between 60-80 (sweet spot)
     const isPerfectTiming = throwPower >= 60 && throwPower <= 80;
@@ -446,6 +475,9 @@ export const GameCanvas = () => {
         coin => !coin.collected && Math.abs(coin.position - targetHorizontalPosition) < 8
       );
       
+      // Check for bullseye target hit
+      const bullseyeHit = Math.abs(bullseyeTarget.position - targetHorizontalPosition) < 6;
+      
       let coinBonus = 0;
       if (collectedCoin) {
         coinBonus = collectedCoin.value;
@@ -468,7 +500,17 @@ export const GameCanvas = () => {
           soundManager.playSuccess();
           
           setTimeout(() => {
-            const newScore = score + 10;
+            let pointsEarned = 10;
+            let bullseyeBonus = 0;
+            
+            // Award bullseye bonus
+            if (bullseyeHit) {
+              bullseyeBonus = 50;
+              pointsEarned += bullseyeBonus;
+              soundManager.playLevelUp(); // Play special sound for bullseye
+            }
+            
+            const newScore = score + pointsEarned;
             setScore(newScore);
             
             // Calculate and award coins (including coin bonus)
@@ -487,7 +529,8 @@ export const GameCanvas = () => {
             setShowConfetti(true);
             
             const coinMessage = coinBonus > 0 ? ` +${coinBonus} Bonus Coins!` : '';
-            toast.success(`+10 Points! +${earnedCoins} Coins!${coinMessage}`, {
+            const bullseyeMessage = bullseyeHit ? ` 🎯 BULLSEYE! +${bullseyeBonus} Points!` : '';
+            toast.success(`+${pointsEarned} Points! +${earnedCoins} Coins!${coinMessage}${bullseyeMessage}`, {
               description: `Score: ${newScore}/${targetScore} | Streak: ${consecutiveHits + 1}`,
             });
 
@@ -839,6 +882,25 @@ export const GameCanvas = () => {
                   collected={coin.collected}
                 />
               ))}
+              
+              {/* Bullseye Target */}
+              <div 
+                className="absolute top-1/2 -translate-y-1/2 transition-all duration-75"
+                style={{ left: `${bullseyeTarget.position}%` }}
+              >
+                <div className="relative -translate-x-1/2">
+                  {/* Outer ring - red */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-red-500 animate-pulse" />
+                  {/* Middle ring - white */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white" />
+                  {/* Inner ring - red */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-red-500" />
+                  {/* Center dot - white */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-lg" />
+                  {/* Glow effect */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-red-400/30 blur-md animate-pulse" />
+                </div>
+              </div>
             </div>
             
             {/* Street lines */}
