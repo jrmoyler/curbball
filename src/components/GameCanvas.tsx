@@ -731,27 +731,6 @@ export const GameCanvas = () => {
         </div>
       )}
 
-      {/* Sky background */}
-      <div className={`absolute inset-0 transition-all duration-1000 ${
-        gameWon 
-          ? 'bg-gradient-to-b from-purple-900 via-pink-600 to-orange-500' 
-          : 'bg-gradient-to-b from-sky-400 via-sky-300 to-sky-200'
-      }`} />
-      
-      {/* Sun */}
-      {!gameWon && (
-        <div className="absolute top-12 right-24 w-24 h-24 rounded-full bg-yellow-300 shadow-[0_0_60px_rgba(253,224,71,0.6)]" />
-      )}
-      
-      {/* Clouds */}
-      {!gameWon && (
-        <>
-          <div className="absolute top-16 left-[10%] w-32 h-16 bg-white rounded-full opacity-80 blur-sm" />
-          <div className="absolute top-24 left-[15%] w-24 h-12 bg-white rounded-full opacity-70 blur-sm" />
-          <div className="absolute top-20 right-[30%] w-40 h-20 bg-white rounded-full opacity-75 blur-sm" />
-          <div className="absolute top-32 right-[35%] w-28 h-14 bg-white rounded-full opacity-65 blur-sm" />
-        </>
-      )}
       
       {/* Houses background */}
       {!gameWon && (
