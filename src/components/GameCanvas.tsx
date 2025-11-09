@@ -678,7 +678,7 @@ export const GameCanvas = () => {
 
   return (
     <div 
-      className="relative w-full h-screen overflow-hidden bg-cover bg-center bg-no-repeat" 
+      className="relative w-full h-screen overflow-hidden bg-contain bg-center bg-no-repeat" 
       style={{ backgroundImage: 'url(/backgrounds/east-high-school.png)' }}
     >
       {/* Starting Screen */}
@@ -733,24 +733,6 @@ export const GameCanvas = () => {
 
       
       
-      {/* Trees */}
-      {!gameWon && (
-        <div className="absolute bottom-64 left-0 right-0 h-48 flex items-end justify-between px-16 pointer-events-none">
-          {/* Tree 1 */}
-          <div className="relative">
-            <div className="w-4 h-24 bg-gradient-to-b from-amber-800 to-amber-900" />
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-16 h-20 bg-green-600 rounded-full" />
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-12 h-16 bg-green-700 rounded-full" />
-          </div>
-          
-          {/* Tree 2 */}
-          <div className="relative">
-            <div className="w-5 h-28 bg-gradient-to-b from-amber-700 to-amber-900" />
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-18 h-24 bg-green-600 rounded-full" />
-            <div className="absolute -top-14 left-1/2 -translate-x-1/2 w-14 h-18 bg-green-700 rounded-full" />
-          </div>
-        </div>
-      )}
       
       {/* Stars effect - only show when won */}
       {gameWon && (
