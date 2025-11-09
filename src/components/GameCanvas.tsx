@@ -732,53 +732,6 @@ export const GameCanvas = () => {
       )}
 
       
-      {/* Houses background */}
-      {!gameWon && (
-        <div className="absolute bottom-64 left-0 right-0 h-64 flex items-end justify-around px-8">
-          {/* House 1 */}
-          <div className="relative">
-            <div className="w-32 h-40 bg-gradient-to-b from-red-400 to-red-600 rounded-t-lg relative">
-              <div className="absolute top-4 left-4 w-6 h-6 bg-sky-200 border-2 border-white" />
-              <div className="absolute top-4 right-4 w-6 h-6 bg-sky-200 border-2 border-white" />
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-8 h-16 bg-amber-900" />
-            </div>
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[70px] border-l-transparent border-r-[70px] border-r-transparent border-b-[40px] border-b-gray-700" />
-          </div>
-          
-          {/* House 2 */}
-          <div className="relative">
-            <div className="w-36 h-48 bg-gradient-to-b from-blue-300 to-blue-500 rounded-t-lg relative">
-              <div className="absolute top-6 left-6 w-7 h-7 bg-sky-100 border-2 border-white" />
-              <div className="absolute top-6 right-6 w-7 h-7 bg-sky-100 border-2 border-white" />
-              <div className="absolute top-20 left-6 w-7 h-7 bg-sky-100 border-2 border-white" />
-              <div className="absolute top-20 right-6 w-7 h-7 bg-sky-100 border-2 border-white" />
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-20 bg-amber-800" />
-            </div>
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[80px] border-l-transparent border-r-[80px] border-r-transparent border-b-[50px] border-b-red-900" />
-          </div>
-          
-          {/* House 3 */}
-          <div className="relative">
-            <div className="w-28 h-36 bg-gradient-to-b from-yellow-300 to-yellow-500 rounded-t-lg relative">
-              <div className="absolute top-4 left-4 w-5 h-5 bg-sky-200 border-2 border-white" />
-              <div className="absolute top-4 right-4 w-5 h-5 bg-sky-200 border-2 border-white" />
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-7 h-14 bg-amber-900" />
-            </div>
-            <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[65px] border-l-transparent border-r-[65px] border-r-transparent border-b-[35px] border-b-gray-800" />
-          </div>
-          
-          {/* House 4 */}
-          <div className="relative">
-            <div className="w-32 h-44 bg-gradient-to-b from-green-400 to-green-600 rounded-t-lg relative">
-              <div className="absolute top-5 left-5 w-6 h-6 bg-sky-100 border-2 border-white" />
-              <div className="absolute top-5 right-5 w-6 h-6 bg-sky-100 border-2 border-white" />
-              <div className="absolute top-18 left-5 w-6 h-6 bg-sky-100 border-2 border-white" />
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-9 h-18 bg-amber-900" />
-            </div>
-            <div className="absolute -top-9 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[72px] border-l-transparent border-r-[72px] border-r-transparent border-b-[45px] border-b-gray-700" />
-          </div>
-        </div>
-      )}
       
       {/* Trees */}
       {!gameWon && (
