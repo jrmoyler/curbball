@@ -678,8 +678,8 @@ export const GameCanvas = () => {
 
   return (
     <div 
-      className="relative w-full h-screen overflow-hidden bg-top bg-no-repeat" 
-      style={{ backgroundImage: 'url(/backgrounds/east-high-school.png)', backgroundSize: '70%' }}
+      className="relative w-full h-screen overflow-hidden bg-no-repeat" 
+      style={{ backgroundImage: 'url(/backgrounds/east-high-school.png)', backgroundSize: '70%', backgroundPosition: 'center 30%' }}
     >
       {/* Starting Screen */}
       {!gameStarted && (
