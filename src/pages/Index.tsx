@@ -57,9 +57,13 @@ const Index = () => {
     return <DifficultySelection onSelectDifficulty={setDifficulty} />;
   }
 
+  const handleBackToDifficulty = () => {
+    setDifficulty(null);
+  };
+
   return (
     <div className="w-full h-screen bg-background">
-      <GameCanvas difficulty={difficulty} />
+      <GameCanvas difficulty={difficulty} onBackToDifficulty={handleBackToDifficulty} />
     </div>
   );
 };

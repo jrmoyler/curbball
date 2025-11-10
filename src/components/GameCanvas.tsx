@@ -39,9 +39,10 @@ export type Difficulty = "easy" | "medium" | "hard";
 
 interface GameCanvasProps {
   difficulty: Difficulty;
+  onBackToDifficulty?: () => void;
 }
 
-export const GameCanvas = ({ difficulty = "easy" }: GameCanvasProps) => {
+export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanvasProps) => {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
   const [coins, setCoins] = useState(0);
@@ -112,41 +113,49 @@ export const GameCanvas = ({ difficulty = "easy" }: GameCanvasProps) => {
   
   const currentSuccessChance = Math.max(20, baseSuccessChance - (level - 1) * successChanceDecrease);
 
-  // Load player data from FBInstant or localStorage
+  // Load player data from FBInstant or localStorage (difficulty-specific)
   useEffect(() => {
     const loadPlayerData = async () => {
       if (fbInstant.isFBInstant()) {
-        const data = await fbInstant.getPlayerDataAsync(['coins', 'highScore', 'gamesPlayed']);
-        setCoins(data.coins || 0);
-        setHighScore(data.highScore || 0);
-        setGamesPlayed(data.gamesPlayed || 0);
+        const data = await fbInstant.getPlayerDataAsync([
+          `coins_${difficulty}`, 
+          `highScore_${difficulty}`, 
+          `gamesPlayed_${difficulty}`
+        ]);
+        setCoins(data[`coins_${difficulty}`] || 0);
+        setHighScore(data[`highScore_${difficulty}`] || 0);
+        setGamesPlayed(data[`gamesPlayed_${difficulty}`] || 0);
         
         // Preload first interstitial ad
         const interstitial = await fbInstant.preloadInterstitialAdAsync();
         setPreloadedInterstitial(interstitial);
       } else {
-        // Fallback to localStorage
-        const savedCoins = localStorage.getItem('game-coins');
-        const savedHighScore = localStorage.getItem('game-highScore');
-        const savedGamesPlayed = localStorage.getItem('game-gamesplayed');
+        // Fallback to localStorage (difficulty-specific)
+        const savedCoins = localStorage.getItem(`game-coins-${difficulty}`);
+        const savedHighScore = localStorage.getItem(`game-highScore-${difficulty}`);
+        const savedGamesPlayed = localStorage.getItem(`game-gamesplayed-${difficulty}`);
         setCoins(savedCoins ? parseInt(savedCoins) : 0);
         setHighScore(savedHighScore ? parseInt(savedHighScore) : 0);
         setGamesPlayed(savedGamesPlayed ? parseInt(savedGamesPlayed) : 0);
       }
     };
     loadPlayerData();
-  }, []);
+  }, [difficulty]);
 
-  // Save player data to both localStorage and FBInstant
+  // Save player data to both localStorage and FBInstant (difficulty-specific)
   useEffect(() => {
-    localStorage.setItem('game-coins', coins.toString());
-    localStorage.setItem('game-highScore', highScore.toString());
-    localStorage.setItem('game-gamesplayed', gamesPlayed.toString());
+    localStorage.setItem(`game-coins-${difficulty}`, coins.toString());
+    localStorage.setItem(`game-highScore-${difficulty}`, highScore.toString());
+    localStorage.setItem(`game-gamesplayed-${difficulty}`, gamesPlayed.toString());
     
     if (fbInstant.isFBInstant()) {
-      fbInstant.setPlayerDataAsync({ coins, highScore, gamesPlayed });
+      fbInstant.setPlayerDataAsync({ 
+        [`coins_${difficulty}`]: coins, 
+        [`highScore_${difficulty}`]: highScore, 
+        [`gamesPlayed_${difficulty}`]: gamesPlayed 
+      });
     }
-  }, [coins, highScore, gamesPlayed]);
+  }, [coins, highScore, gamesPlayed, difficulty]);
 
   // Timer countdown
   useEffect(() => {
@@ -613,9 +622,9 @@ export const GameCanvas = ({ difficulty = "easy" }: GameCanvasProps) => {
     if (score > highScore) {
       setHighScore(score);
       
-      // Update leaderboard if in Facebook
+      // Update leaderboard if in Facebook (difficulty-specific)
       if (fbInstant.isFBInstant()) {
-        await fbInstant.setLeaderboardScore('global_leaderboard', score);
+        await fbInstant.setLeaderboardScore(`leaderboard_${difficulty}`, score);
       }
     }
     
@@ -666,8 +675,8 @@ export const GameCanvas = ({ difficulty = "easy" }: GameCanvasProps) => {
     const newGamesPlayed = gamesPlayed + 1;
     setGamesPlayed(newGamesPlayed);
     
-    // Submit score to leaderboard with time as extra data
-    fbInstant.setLeaderboardScore('global_leaderboard', finalScore, timeTaken.toString());
+    // Submit score to leaderboard with time as extra data (difficulty-specific)
+    fbInstant.setLeaderboardScore(`leaderboard_${difficulty}`, finalScore, timeTaken.toString());
     
     toast.success("Time's Up!", {
       description: `Final Score: ${finalScore} | Time: ${formatTime(timeTaken)} | Coins: ${coins}`,
@@ -794,29 +803,39 @@ export const GameCanvas = ({ difficulty = "easy" }: GameCanvasProps) => {
         onTouchEnd={handleTouchEnd}
       >
         {/* HUD */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
-          <Card className="px-6 py-3 bg-card/90 backdrop-blur-sm border-2 border-primary">
-            <div className="flex items-center gap-8">
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground font-semibold">SCORE</div>
-                <div className="text-3xl font-bold text-primary">{score}</div>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground font-semibold">ELAPSED</div>
-                <div className="text-2xl font-bold text-accent">{formatTime(getElapsedTime())}</div>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground font-semibold">TIME LEFT</div>
-                <div className={`text-3xl font-bold ${
-                  timeRemaining < 30 ? 'text-red-500 animate-pulse' : 'text-foreground'
-                }`}>{formatTime(timeRemaining)}</div>
-              </div>
-            </div>
-          </Card>
+        <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-start">
+          <Button 
+            variant="outline" 
+            onClick={onBackToDifficulty}
+            className="bg-card/90 backdrop-blur-sm hover:bg-card"
+          >
+            ← Back
+          </Button>
           
-          <CoinDisplay coins={coins} />
+          <div className="flex items-center gap-4">
+            <Card className="px-6 py-3 bg-card/90 backdrop-blur-sm border-2 border-primary">
+              <div className="flex items-center gap-8">
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground font-semibold">SCORE</div>
+                  <div className="text-3xl font-bold text-primary">{score}</div>
+                </div>
+                <div className="h-8 w-px bg-border" />
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground font-semibold">ELAPSED</div>
+                  <div className="text-2xl font-bold text-accent">{formatTime(getElapsedTime())}</div>
+                </div>
+                <div className="h-8 w-px bg-border" />
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground font-semibold">TIME LEFT</div>
+                  <div className={`text-3xl font-bold ${
+                    timeRemaining < 30 ? 'text-red-500 animate-pulse' : 'text-foreground'
+                  }`}>{formatTime(timeRemaining)}</div>
+                </div>
+              </div>
+            </Card>
+            
+            <CoinDisplay coins={coins} />
+          </div>
         </div>
 
         {/* Street and curb */}
@@ -1132,7 +1151,7 @@ export const GameCanvas = ({ difficulty = "easy" }: GameCanvasProps) => {
             >
               ✕
             </button>
-            <Leaderboard />
+            <Leaderboard difficulty={difficulty} />
           </div>
         </div>
       )}

@@ -14,19 +14,23 @@ interface LeaderboardEntry {
   };
 }
 
+interface LeaderboardProps {
+  difficulty: "easy" | "medium" | "hard";
+}
+
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-export const Leaderboard = () => {
+export const Leaderboard = ({ difficulty }: LeaderboardProps) => {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadLeaderboard();
-  }, []);
+  }, [difficulty]);
 
   const loadLeaderboard = async () => {
     if (!fbInstant.isFBInstant()) {
@@ -35,7 +39,7 @@ export const Leaderboard = () => {
     }
 
     try {
-      const leaderboardEntries = await fbInstant.getLeaderboardEntries('global_leaderboard', 10);
+      const leaderboardEntries = await fbInstant.getLeaderboardEntries(`leaderboard_${difficulty}`, 10);
       setEntries(leaderboardEntries);
     } catch (error) {
       console.error('Failed to load leaderboard:', error);
@@ -53,7 +57,7 @@ export const Leaderboard = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-yellow-500" />
-          Leaderboard
+          Leaderboard - {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
         </CardTitle>
       </CardHeader>
       <CardContent>
