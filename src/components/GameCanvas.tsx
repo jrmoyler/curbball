@@ -89,21 +89,21 @@ export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanv
       successChanceDecrease: 5,
       obstacleSpawnChance: 0.7,
       obstacleSpeed: { min: 1, max: 2 },
-      bullseyeSpeed: 10.0,
+      bullseyeSpeed: 0.5,
     },
     medium: {
       baseSuccessChance: 35,
       successChanceDecrease: 7,
       obstacleSpawnChance: 0.6,
       obstacleSpeed: { min: 1.5, max: 3 },
-      bullseyeSpeed: 10.0,
+      bullseyeSpeed: 1.0,
     },
     hard: {
       baseSuccessChance: 25,
       successChanceDecrease: 10,
       obstacleSpawnChance: 0.5,
       obstacleSpeed: { min: 2, max: 4 },
-      bullseyeSpeed: 10.0,
+      bullseyeSpeed: 1.8,
     }
   };
 
@@ -886,27 +886,12 @@ export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanv
                 />
               ))}
               
-              {/* Bullseye Target with Motion Trail */}
+              {/* Bullseye Target */}
               <div 
                 className="absolute top-1/2 -translate-y-1/2 transition-all duration-75"
                 style={{ left: `${bullseyeTarget.position}%` }}
               >
                 <div className="relative -translate-x-1/2">
-                  {/* Speed trail effects - multiple layers for better visibility */}
-                  {bullseyeTarget.direction === 1 ? (
-                    <>
-                      <div className="absolute top-1/2 -translate-y-1/2 -left-20 w-20 h-1 bg-gradient-to-r from-transparent via-red-500/40 to-red-500/60 blur-sm" />
-                      <div className="absolute top-1/2 -translate-y-1/2 -left-16 w-16 h-0.5 bg-gradient-to-r from-transparent via-orange-500/50 to-orange-500/70 blur-[2px]" />
-                      <div className="absolute top-1/2 -translate-y-1/2 -left-12 w-12 h-2 bg-gradient-to-r from-transparent via-yellow-500/30 to-yellow-500/50" />
-                    </>
-                  ) : (
-                    <>
-                      <div className="absolute top-1/2 -translate-y-1/2 left-0 w-20 h-1 bg-gradient-to-l from-transparent via-red-500/40 to-red-500/60 blur-sm" />
-                      <div className="absolute top-1/2 -translate-y-1/2 left-0 w-16 h-0.5 bg-gradient-to-l from-transparent via-orange-500/50 to-orange-500/70 blur-[2px]" />
-                      <div className="absolute top-1/2 -translate-y-1/2 left-0 w-12 h-2 bg-gradient-to-l from-transparent via-yellow-500/30 to-yellow-500/50" />
-                    </>
-                  )}
-                  
                   {/* Outer ring - red */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-red-500 animate-pulse" />
                   {/* Middle ring - white */}
@@ -950,46 +935,20 @@ export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanv
               ))}
             </div>
 
-            {/* Obstacles - Enhanced Cars */}
+            {/* Obstacles */}
             {obstacles.map((obs) => (
               <div
                 key={obs.id}
                 className="absolute bottom-16 transition-all"
                 style={{ left: `${obs.position}%` }}
               >
-                {obs.type === "car" ? (
-                  <div className="relative">
-                    {/* Car body with 3D effect */}
-                    <div className="w-20 h-12 bg-gradient-to-b from-red-500 to-red-700 rounded-lg shadow-2xl relative overflow-hidden border-2 border-red-900/50">
-                      {/* Windshield */}
-                      <div className="absolute top-1 left-3 w-6 h-4 bg-gradient-to-b from-blue-300/60 to-blue-400/40 rounded-sm" />
-                      {/* Windows */}
-                      <div className="absolute top-1 right-3 w-6 h-4 bg-gradient-to-b from-blue-300/60 to-blue-400/40 rounded-sm" />
-                      {/* Shine effect */}
-                      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-b from-white/30 to-transparent rounded-t-lg" />
-                      {/* Speed lines */}
-                      <div className="absolute -left-8 top-1/2 -translate-y-1/2 w-6 h-0.5 bg-gradient-to-r from-transparent to-white/40" />
-                      <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-gradient-to-r from-transparent to-white/30" />
-                    </div>
-                    {/* Wheels */}
-                    <div className="absolute -bottom-1 left-2 w-4 h-4 rounded-full bg-gradient-to-br from-gray-800 to-black border-2 border-gray-600" />
-                    <div className="absolute -bottom-1 right-2 w-4 h-4 rounded-full bg-gradient-to-br from-gray-800 to-black border-2 border-gray-600" />
-                  </div>
-                ) : (
-                  <div className="relative">
-                    {/* Bike body */}
-                    <div className="w-12 h-8 bg-gradient-to-b from-blue-500 to-blue-700 rounded-lg shadow-xl relative border-2 border-blue-900/50">
-                      {/* Rider */}
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-3 h-6 bg-gradient-to-b from-gray-700 to-gray-900 rounded-full" />
-                      {/* Speed lines */}
-                      <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-gradient-to-r from-transparent to-white/40" />
-                      <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-3 h-0.5 bg-gradient-to-r from-transparent to-white/30" />
-                    </div>
-                    {/* Wheels */}
-                    <div className="absolute -bottom-1 left-1 w-3 h-3 rounded-full bg-gradient-to-br from-gray-800 to-black border border-gray-600" />
-                    <div className="absolute -bottom-1 right-1 w-3 h-3 rounded-full bg-gradient-to-br from-gray-800 to-black border border-gray-600" />
-                  </div>
-                )}
+                <div
+                  className={`${
+                    obs.type === "car"
+                      ? "w-20 h-12 bg-gradient-to-r from-red-600 to-red-800"
+                      : "w-12 h-8 bg-gradient-to-r from-blue-600 to-blue-800"
+                  } rounded-lg shadow-lg`}
+                />
               </div>
             ))}
 
