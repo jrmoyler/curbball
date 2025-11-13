@@ -1,14 +1,15 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Target, Zap, Flame } from "lucide-react";
+import { Target, Zap, Flame, ShoppingBag } from "lucide-react";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
 interface DifficultySelectionProps {
   onSelectDifficulty: (difficulty: Difficulty) => void;
+  onOpenShop?: () => void;
 }
 
-export const DifficultySelection = ({ onSelectDifficulty }: DifficultySelectionProps) => {
+export const DifficultySelection = ({ onSelectDifficulty, onOpenShop }: DifficultySelectionProps) => {
   const difficulties = [
     {
       id: "easy" as Difficulty,
@@ -52,6 +53,19 @@ export const DifficultySelection = ({ onSelectDifficulty }: DifficultySelectionP
           <p className="text-muted-foreground text-lg">
             Choose your challenge level
           </p>
+          
+          {onOpenShop && (
+            <div className="mt-4">
+              <Button
+                onClick={onOpenShop}
+                variant="outline"
+                className="gap-2"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Backdrop Shop
+              </Button>
+            </div>
+          )}
         </div>
         
         <div className="grid md:grid-cols-3 gap-6">

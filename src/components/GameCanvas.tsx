@@ -40,9 +40,16 @@ export type Difficulty = "easy" | "medium" | "hard";
 interface GameCanvasProps {
   difficulty: Difficulty;
   onBackToDifficulty?: () => void;
+  backdropImage?: string;
+  onCoinsChange?: (coins: number) => void;
 }
 
-export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanvasProps) => {
+export const GameCanvas = ({ 
+  difficulty = "easy", 
+  onBackToDifficulty,
+  backdropImage = "default",
+  onCoinsChange 
+}: GameCanvasProps) => {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
   const [coins, setCoins] = useState(0);
@@ -155,7 +162,12 @@ export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanv
         [`gamesPlayed_${difficulty}`]: gamesPlayed 
       });
     }
-  }, [coins, highScore, gamesPlayed, difficulty]);
+
+    // Notify parent about coin changes
+    if (onCoinsChange) {
+      onCoinsChange(coins);
+    }
+  }, [coins, highScore, gamesPlayed, difficulty, onCoinsChange]);
 
   // Timer countdown
   useEffect(() => {
@@ -719,10 +731,20 @@ export const GameCanvas = ({ difficulty = "easy", onBackToDifficulty }: GameCanv
     return TIME_LIMIT - timeRemaining;
   };
 
+  // Get backdrop URL based on selected backdrop
+  const getBackdropUrl = () => {
+    const backdropMap: Record<string, string> = {
+      "default": "/backgrounds/east-high-school.png",
+      "linden-mural": "/backgrounds/linden-mural.png",
+      "ohio-tower": "/backgrounds/ohio-tower.png",
+    };
+    return backdropMap[backdropImage] || backdropMap["default"];
+  };
+
   return (
     <div 
       className="relative w-full h-screen overflow-hidden bg-top bg-no-repeat" 
-      style={{ backgroundImage: 'url(/backgrounds/east-high-school.png)', backgroundSize: '70%' }}
+      style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: '70%' }}
     >
       {/* Starting Screen */}
       {!gameStarted && (
