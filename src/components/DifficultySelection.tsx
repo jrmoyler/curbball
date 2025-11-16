@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3 } from "lucide-react";
+import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3, Circle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fbInstant } from "@/lib/fbInstantManager";
 import { useNavigate } from "react-router-dom";
@@ -89,8 +89,8 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
             Choose your challenge level
           </p>
           
-          {/* Prominent Shop Button */}
-          {onOpenShop && (
+          {/* Prominent Shop Buttons */}
+          {(onOpenShop || onOpenBallShop) && (
             <div className="flex flex-col items-center gap-3 mb-4">
               {/* Coin Balance Display */}
               <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-full border-2 border-yellow-500/40 backdrop-blur-sm">
@@ -98,23 +98,39 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
                 <span className="font-bold text-lg text-foreground">{totalCoins.toLocaleString()} Coins</span>
               </div>
 
-              {/* Shop Button with Animation */}
-              <Button
-                onClick={onOpenShop}
-                size="lg"
-                className="gap-2 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 hover:from-purple-700 hover:via-pink-700 hover:to-red-700 text-white font-bold text-lg px-8 py-6 rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 animate-pulse relative overflow-hidden group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 via-pink-400/20 to-purple-400/20 animate-shimmer" />
-                <ShoppingBag className="w-6 h-6 relative z-10" />
-                <span className="relative z-10">Backdrop Shop</span>
-                <Sparkles className="w-5 h-5 relative z-10 animate-spin" />
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-bounce">
-                  NEW
-                </span>
-              </Button>
+              {/* Shop Buttons Container */}
+              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-2xl">
+                {/* Backdrop Shop Button */}
+                {onOpenShop && (
+                  <Button
+                    onClick={onOpenShop}
+                    size="lg"
+                    className="gap-2 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 hover:from-purple-700 hover:via-pink-700 hover:to-red-700 text-white font-bold text-lg px-8 py-6 rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 via-pink-400/20 to-purple-400/20 animate-shimmer" />
+                    <ShoppingBag className="w-6 h-6 relative z-10" />
+                    <span className="relative z-10">Backdrop Shop</span>
+                    <Sparkles className="w-5 h-5 relative z-10 animate-spin" />
+                  </Button>
+                )}
+
+                {/* Ball Skins Shop Button */}
+                {onOpenBallShop && (
+                  <Button
+                    onClick={onOpenBallShop}
+                    size="lg"
+                    className="gap-2 bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 hover:from-blue-700 hover:via-cyan-700 hover:to-teal-700 text-white font-bold text-lg px-8 py-6 rounded-xl shadow-2xl transform hover:scale-105 transition-all duration-300 relative overflow-hidden group flex-1"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 via-cyan-400/20 to-teal-400/20 animate-shimmer" />
+                    <Circle className="w-6 h-6 relative z-10" />
+                    <span className="relative z-10">Ball Skins</span>
+                    <Sparkles className="w-5 h-5 relative z-10 animate-spin" />
+                  </Button>
+                )}
+              </div>
               
               <p className="text-sm text-muted-foreground">
-                Unlock exclusive backgrounds with coins or cash!
+                Unlock exclusive {onOpenShop && onOpenBallShop ? 'backgrounds & ball skins' : onOpenShop ? 'backgrounds' : 'ball skins'} with coins or cash!
               </p>
             </div>
           )}
