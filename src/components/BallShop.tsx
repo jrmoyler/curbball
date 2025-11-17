@@ -44,12 +44,20 @@ export const BallShop = ({
 
   const ballSkins: BallSkin[] = [
     {
-      id: "basketball",
-      name: "Orange Gradient Ball",
-      description: "Vibrant and smooth",
-      imageUrl: "/balls/orange-gradient-ball.png",
+      id: "default",
+      name: "Classic Ball",
+      description: "Original game ball",
+      imageUrl: "/curbball-logo.png",
       coinPrice: 0,
       usdPrice: 0,
+    },
+    {
+      id: "basketball",
+      name: "Basketball",
+      description: "Bounce like a pro hooper",
+      imageUrl: "/balls/basketball.png",
+      coinPrice: 3000,
+      usdPrice: 0.99,
     },
     {
       id: "soccer-ball",
@@ -74,6 +82,14 @@ export const BallShop = ({
       imageUrl: "/balls/tennis-ball.png",
       coinPrice: 4000,
       usdPrice: 1.49,
+    },
+    {
+      id: "mystery-ball",
+      name: "Mystery Ball",
+      description: "Random surprise with every throw!",
+      imageUrl: "/balls/mystery-ball.png",
+      coinPrice: 10000,
+      usdPrice: 2.99,
     },
     // Achievement-only balls
     {

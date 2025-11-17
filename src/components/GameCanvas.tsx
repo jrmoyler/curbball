@@ -798,6 +798,9 @@ export const GameCanvas = ({
   };
 
   const getBallImageUrl = (ballId: string): string | null => {
+    if (ballId === 'default') {
+      return null;
+    }
     return `/balls/${ballId}.png`;
   };
 
@@ -1056,11 +1059,19 @@ export const GameCanvas = ({
                 }`,
               }}
             >
-              <img 
-                src={getBallImageUrl(currentBall)!} 
-                alt="Ball" 
-                className={`w-full h-full object-contain ${ballPhase === 'hit' ? 'animate-pulse' : ''}`}
-              />
+              {getBallImageUrl(currentBall) ? (
+                <img 
+                  src={getBallImageUrl(currentBall)!} 
+                  alt="Ball" 
+                  className={`w-full h-full object-contain ${ballPhase === 'hit' ? 'animate-pulse' : ''}`}
+                />
+              ) : (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl">
+                  <div className={`w-full h-full rounded-full border-4 border-orange-900/30 ${
+                    ballPhase === 'hit' ? 'animate-pulse' : ''
+                  }`} />
+                </div>
+              )}
             </div>
           </div>
         </div>

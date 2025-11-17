@@ -21,8 +21,8 @@ const Index = () => {
   const [currentCoins, setCurrentCoins] = useState(0);
   const [ownedBackdrops, setOwnedBackdrops] = useState<string[]>(["default"]);
   const [currentBackdrop, setCurrentBackdrop] = useState("default");
-  const [ownedBalls, setOwnedBalls] = useState<string[]>(["basketball"]);
-  const [currentBall, setCurrentBall] = useState("basketball");
+  const [ownedBalls, setOwnedBalls] = useState<string[]>(["default"]);
+  const [currentBall, setCurrentBall] = useState("default");
   const [achievements, setAchievements] = useState<Achievement[]>([
     {
       id: "first_1000",
@@ -141,26 +141,10 @@ const Index = () => {
           setCurrentBackdrop(data.currentBackdrop);
         }
         if (data.ownedBalls) {
-          let balls = data.ownedBalls;
-          // Remove mystery ball if owned
-          if (balls.includes('mystery-ball')) {
-            balls = balls.filter((b: string) => b !== 'mystery-ball');
-          }
-          setOwnedBalls(balls);
+          setOwnedBalls(data.ownedBalls);
         }
-        let selectedBall = data.currentBall || 'basketball';
-        // Switch to default if using mystery ball
-        if (selectedBall === 'mystery-ball') {
-          selectedBall = 'basketball';
-        }
-        setCurrentBall(selectedBall);
-        
-        // Save the cleaned data back
-        if (data.currentBall === 'mystery-ball' || (data.ownedBalls && data.ownedBalls.includes('mystery-ball'))) {
-          await fbInstant.setPlayerDataAsync({
-            currentBall: selectedBall,
-            ownedBalls: data.ownedBalls ? data.ownedBalls.filter((b: string) => b !== 'mystery-ball') : ['basketball']
-          });
+        if (data.currentBall) {
+          setCurrentBall(data.currentBall);
         }
         if (data.achievements) {
           setAchievements(data.achievements);
@@ -199,24 +183,8 @@ const Index = () => {
         
         if (savedBackdrops) setOwnedBackdrops(JSON.parse(savedBackdrops));
         if (savedCurrent) setCurrentBackdrop(savedCurrent);
-        if (savedBalls) {
-          let balls = JSON.parse(savedBalls);
-          // Remove mystery ball if owned
-          if (balls.includes('mystery-ball')) {
-            balls = balls.filter((b: string) => b !== 'mystery-ball');
-            localStorage.setItem('ownedBalls', JSON.stringify(balls));
-          }
-          setOwnedBalls(balls);
-        }
-        if (savedCurrentBall) {
-          let selectedBall = savedCurrentBall;
-          // Switch to default if using mystery ball
-          if (selectedBall === 'mystery-ball') {
-            selectedBall = 'basketball';
-            localStorage.setItem('currentBall', selectedBall);
-          }
-          setCurrentBall(selectedBall);
-        }
+        if (savedBalls) setOwnedBalls(JSON.parse(savedBalls));
+        if (savedCurrentBall) setCurrentBall(savedCurrentBall);
         if (savedAchievements) setAchievements(JSON.parse(savedAchievements));
         
         if (storedChallenges) {
