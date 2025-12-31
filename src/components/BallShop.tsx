@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingBag, Lock, Check, Coins, DollarSign, Trophy } from "lucide-react";
+import { ShoppingBag, Lock, Check, Coins, DollarSign, Trophy, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fbInstant } from "@/lib/fbInstantManager";
+import { initiateStripePurchase } from "@/lib/stripePayments";
 
 export interface BallSkin {
   id: string;
@@ -41,6 +42,7 @@ export const BallShop = ({
 }: BallShopProps) => {
   const { toast } = useToast();
   const [selectedBall, setSelectedBall] = useState<BallSkin | null>(null);
+  const [isPurchasing, setIsPurchasing] = useState<string | null>(null);
 
   const ballSkins: BallSkin[] = [
     {
@@ -138,15 +140,37 @@ export const BallShop = ({
     if (fbInstant.isFBInstant()) {
       toast({
         title: "Payment Coming Soon",
-        description: "Real money purchases will be available soon!",
+        description: "Real money purchases will be available soon on Facebook!",
       });
-    } else {
-      onPurchaseWithMoney(ball);
-      setSelectedBall(null);
+      return;
+    }
+    
+    // Use Stripe for standalone web version
+    setIsPurchasing(ball.id);
+    try {
+      const { url, error } = await initiateStripePurchase(ball.id, ball.name);
+      
+      if (error) {
+        toast({
+          title: "Purchase Error",
+          description: error,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (url) {
+        // Redirect to Stripe checkout
+        window.location.href = url;
+      }
+    } catch (err) {
       toast({
-        title: "Ball Skin Unlocked!",
-        description: `You purchased ${ball.name}! (Demo mode)`,
+        title: "Purchase Error",
+        description: "Failed to initiate purchase. Please try again.",
+        variant: "destructive",
       });
+    } finally {
+      setIsPurchasing(null);
     }
   };
 
@@ -270,8 +294,13 @@ export const BallShop = ({
                         <Button
                           className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white"
                           onClick={() => handlePurchaseWithMoney(ball)}
+                          disabled={isPurchasing === ball.id}
                         >
-                          <DollarSign className="w-4 h-4" />
+                          {isPurchasing === ball.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <DollarSign className="w-4 h-4" />
+                          )}
                           ${ball.usdPrice.toFixed(2)} USD
                         </Button>
                       </>

@@ -8,6 +8,7 @@ import { Achievements, Achievement } from "@/components/Achievements";
 import { DailyChallenges, DailyChallenge } from "@/components/DailyChallenges";
 import { fbInstant } from "@/lib/fbInstantManager";
 import { useToast } from "@/hooks/use-toast";
+import { checkPurchaseRedirect, clearPurchaseParams, verifyPurchase } from "@/lib/stripePayments";
 
 const isFBInstantEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
 
@@ -256,6 +257,70 @@ const Index = () => {
 
     initializeFBInstant();
   }, []);
+
+  // Handle Stripe purchase redirect
+  useEffect(() => {
+    const handlePurchaseRedirect = async () => {
+      const { isPurchaseSuccess, isPurchaseCancelled, itemId, itemType, sessionId } = checkPurchaseRedirect();
+      
+      if (isPurchaseCancelled) {
+        toast({
+          title: "Purchase Cancelled",
+          description: "Your purchase was cancelled.",
+        });
+        clearPurchaseParams();
+        return;
+      }
+      
+      if (isPurchaseSuccess && sessionId && itemId && itemType) {
+        // Verify the purchase with Stripe
+        const result = await verifyPurchase(sessionId);
+        
+        if (result.success && result.itemId) {
+          // Unlock the purchased item
+          if (result.itemType === 'ball') {
+            const newOwned = [...ownedBalls, result.itemId];
+            setOwnedBalls(newOwned);
+            setCurrentBall(result.itemId);
+            localStorage.setItem('ownedBalls', JSON.stringify(newOwned));
+            localStorage.setItem('currentBall', result.itemId);
+            if (fbInstant.isFBInstant()) {
+              fbInstant.setPlayerDataAsync({ ownedBalls: newOwned, currentBall: result.itemId });
+            }
+            toast({
+              title: "🎉 Ball Skin Unlocked!",
+              description: `Your new ball skin is now available!`,
+              duration: 5000,
+            });
+          } else if (result.itemType === 'backdrop') {
+            const newOwned = [...ownedBackdrops, result.itemId];
+            setOwnedBackdrops(newOwned);
+            setCurrentBackdrop(result.itemId);
+            localStorage.setItem('ownedBackdrops', JSON.stringify(newOwned));
+            localStorage.setItem('currentBackdrop', result.itemId);
+            if (fbInstant.isFBInstant()) {
+              fbInstant.setPlayerDataAsync({ ownedBackdrops: newOwned, currentBackdrop: result.itemId });
+            }
+            toast({
+              title: "🎉 Backdrop Unlocked!",
+              description: `Your new backdrop is now available!`,
+              duration: 5000,
+            });
+          }
+        } else {
+          toast({
+            title: "Purchase Verification Failed",
+            description: "Please contact support if you were charged.",
+            variant: "destructive",
+          });
+        }
+        
+        clearPurchaseParams();
+      }
+    };
+    
+    handlePurchaseRedirect();
+  }, [ownedBalls, ownedBackdrops, toast]);
 
   const handleLoadingComplete = () => {
     setIsLoading(false);

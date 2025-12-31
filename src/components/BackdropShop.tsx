@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ShoppingBag, Lock, Check, Coins, DollarSign } from "lucide-react";
+import { ShoppingBag, Lock, Check, Coins, DollarSign, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fbInstant } from "@/lib/fbInstantManager";
+import { initiateStripePurchase } from "@/lib/stripePayments";
 
 export interface Backdrop {
   id: string;
@@ -36,6 +37,7 @@ export const BackdropShop = ({
 }: BackdropShopProps) => {
   const { toast } = useToast();
   const [selectedBackdrop, setSelectedBackdrop] = useState<Backdrop | null>(null);
+  const [isPurchasing, setIsPurchasing] = useState<string | null>(null);
 
   const backdrops: Backdrop[] = [
     {
@@ -147,20 +149,40 @@ export const BackdropShop = ({
   };
 
   const handlePurchaseWithMoney = async (backdrop: Backdrop) => {
-    // In production, integrate with FB Instant Payments or Stripe
     if (fbInstant.isFBInstant()) {
       toast({
         title: "Payment Coming Soon",
-        description: "Real money purchases will be available soon!",
+        description: "Real money purchases will be available soon on Facebook!",
       });
-    } else {
-      // Web fallback - just unlock it
-      onPurchaseWithMoney(backdrop);
-      setSelectedBackdrop(null);
+      return;
+    }
+    
+    // Use Stripe for standalone web version
+    setIsPurchasing(backdrop.id);
+    try {
+      const { url, error } = await initiateStripePurchase(backdrop.id, backdrop.name);
+      
+      if (error) {
+        toast({
+          title: "Purchase Error",
+          description: error,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (url) {
+        // Redirect to Stripe checkout
+        window.location.href = url;
+      }
+    } catch (err) {
       toast({
-        title: "Backdrop Unlocked!",
-        description: `You purchased ${backdrop.name}! (Demo mode)`,
+        title: "Purchase Error",
+        description: "Failed to initiate purchase. Please try again.",
+        variant: "destructive",
       });
+    } finally {
+      setIsPurchasing(null);
     }
   };
 
@@ -246,8 +268,13 @@ export const BackdropShop = ({
                         <Button
                           className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white"
                           onClick={() => handlePurchaseWithMoney(backdrop)}
+                          disabled={isPurchasing === backdrop.id}
                         >
-                          <DollarSign className="w-4 h-4" />
+                          {isPurchasing === backdrop.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <DollarSign className="w-4 h-4" />
+                          )}
                           ${backdrop.usdPrice.toFixed(2)} USD
                         </Button>
                       </>
