@@ -160,7 +160,15 @@ export const BackdropShop = ({
     // Use Stripe for standalone web version
     setIsPurchasing(backdrop.id);
     try {
-      const { url, error } = await initiateStripePurchase(backdrop.id, backdrop.name);
+      const { url, error, code } = await initiateStripePurchase(backdrop.id, backdrop.name, ownedBackdrops);
+      
+      if (code === 'DUPLICATE_PURCHASE') {
+        toast({
+          title: "Already Owned",
+          description: "You already own this backdrop!",
+        });
+        return;
+      }
       
       if (error) {
         toast({

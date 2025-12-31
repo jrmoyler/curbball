@@ -36,32 +36,68 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Retrieve the checkout session
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    // Retrieve the checkout session with line items for price info
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['line_items', 'payment_intent']
+    });
     logStep("Session retrieved", { 
       status: session.payment_status, 
       metadata: session.metadata,
-      customerEmail: session.customer_details?.email
+      customerEmail: session.customer_details?.email,
+      amountTotal: session.amount_total
     });
 
     if (session.payment_status === "paid") {
       logStep("Payment verified successfully");
 
-      // Save customer email to database if available
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+
       const customerEmail = session.customer_details?.email;
+      const itemId = session.metadata?.item_id;
+      const itemType = session.metadata?.item_type;
+      const itemName = session.metadata?.item_name;
+      const amountPaid = session.amount_total || 0;
+      const currency = session.currency || 'usd';
+      const paymentIntentId = typeof session.payment_intent === 'string' 
+        ? session.payment_intent 
+        : session.payment_intent?.id;
+
+      // Save to purchases table (complete purchase record)
+      try {
+        const { error: purchaseError } = await supabaseClient
+          .from("purchases")
+          .upsert({
+            email: customerEmail || 'unknown',
+            item_id: itemId,
+            item_type: itemType,
+            item_name: itemName,
+            amount_paid: amountPaid,
+            currency: currency,
+            stripe_session_id: sessionId,
+            stripe_payment_intent_id: paymentIntentId,
+          }, { onConflict: 'stripe_session_id' });
+
+        if (purchaseError) {
+          logStep("Failed to save purchase", { error: purchaseError.message });
+        } else {
+          logStep("Purchase saved successfully", { email: customerEmail, itemId });
+        }
+      } catch (dbError) {
+        logStep("Database error saving purchase", { error: String(dbError) });
+      }
+
+      // Also save to customer_emails for marketing (only if email available)
       if (customerEmail) {
         try {
-          const supabaseClient = createClient(
-            Deno.env.get("SUPABASE_URL") ?? "",
-            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-          );
-
           const { error: insertError } = await supabaseClient
             .from("customer_emails")
             .upsert({
               email: customerEmail,
-              item_id: session.metadata?.item_id,
-              item_type: session.metadata?.item_type,
+              item_id: itemId,
+              item_type: itemType,
               stripe_session_id: sessionId,
             }, { onConflict: 'email' });
 
@@ -77,9 +113,9 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({
         verified: true,
-        itemId: session.metadata?.item_id,
-        itemType: session.metadata?.item_type,
-        itemName: session.metadata?.item_name,
+        itemId: itemId,
+        itemType: itemType,
+        itemName: itemName,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,12 +47,30 @@ serve(async (req) => {
     }
     logStep("Stripe key verified");
 
-    const { itemId, itemName } = await req.json();
-    logStep("Request body parsed", { itemId, itemName });
+    const { itemId, itemName, ownedItems } = await req.json();
+    logStep("Request body parsed", { itemId, itemName, ownedItemsCount: ownedItems?.length });
 
     if (!itemId || !STRIPE_PRICES[itemId]) {
       throw new Error(`Invalid item ID: ${itemId}`);
     }
+
+    // Check for duplicate purchase if ownedItems provided
+    if (ownedItems && Array.isArray(ownedItems) && ownedItems.includes(itemId)) {
+      logStep("Duplicate purchase attempted", { itemId });
+      return new Response(JSON.stringify({ 
+        error: "You already own this item",
+        code: "DUPLICATE_PURCHASE"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    // Also check database for previous purchases of this item
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
 
     const priceInfo = STRIPE_PRICES[itemId];
     logStep("Price info found", { priceId: priceInfo.priceId, type: priceInfo.type });
