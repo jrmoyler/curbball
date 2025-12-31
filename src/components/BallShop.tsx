@@ -148,7 +148,15 @@ export const BallShop = ({
     // Use Stripe for standalone web version
     setIsPurchasing(ball.id);
     try {
-      const { url, error } = await initiateStripePurchase(ball.id, ball.name);
+      const { url, error, code } = await initiateStripePurchase(ball.id, ball.name, ownedBalls);
+      
+      if (code === 'DUPLICATE_PURCHASE') {
+        toast({
+          title: "Already Owned",
+          description: "You already own this ball skin!",
+        });
+        return;
+      }
       
       if (error) {
         toast({

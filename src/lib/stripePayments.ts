@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface PurchaseResult {
   success: boolean;
   error?: string;
+  code?: string;
   itemId?: string;
   itemType?: 'ball' | 'backdrop';
 }
@@ -12,16 +13,26 @@ export interface PurchaseResult {
  */
 export const initiateStripePurchase = async (
   itemId: string,
-  itemName: string
-): Promise<{ url: string | null; error?: string }> => {
+  itemName: string,
+  ownedItems?: string[]
+): Promise<{ url: string | null; error?: string; code?: string }> => {
   try {
     const { data, error } = await supabase.functions.invoke('create-iap-checkout', {
-      body: { itemId, itemName },
+      body: { itemId, itemName, ownedItems },
     });
 
     if (error) {
       console.error('Error creating checkout session:', error);
       return { url: null, error: error.message };
+    }
+
+    // Check for duplicate purchase error
+    if (data?.code === 'DUPLICATE_PURCHASE') {
+      return { url: null, error: data.error, code: 'DUPLICATE_PURCHASE' };
+    }
+
+    if (data?.error) {
+      return { url: null, error: data.error, code: data.code };
     }
 
     if (data?.url) {

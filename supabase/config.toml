@@ -1,1 +1,7 @@
 project_id = "bxiejlgvuzjpwdwwjzhb"
+
+[functions.create-iap-checkout]
+verify_jwt = false
+
+[functions.verify-iap-purchase]
+verify_jwt = false
