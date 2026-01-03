@@ -821,45 +821,50 @@ export const GameCanvas = ({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* HUD */}
-        <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-start">
-          <div className="flex items-center gap-4">
+        {/* HUD - Mobile Responsive */}
+        <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 flex flex-col sm:flex-row justify-between items-start gap-2">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button 
               variant="outline" 
+              size="sm"
               onClick={onBackToDifficulty}
-              className="bg-card/90 backdrop-blur-sm hover:bg-card"
+              className="bg-card/90 backdrop-blur-sm hover:bg-card text-xs sm:text-sm px-2 sm:px-4"
             >
               ← Back
             </Button>
             
             {ballPhase === 'ready' && (
-              <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
+              <div className="hidden sm:block">
+                <ThrowMeter value={power} isCharging={isCharging} disabled={isThowing || isBallFlying} />
+              </div>
             )}
           </div>
           
-          <div className="flex items-center gap-4">
-            <Card className="px-6 py-3 bg-card/90 backdrop-blur-sm border-2 border-primary">
-              <div className="flex items-center gap-8">
+          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-end">
+            <Card className="px-2 sm:px-6 py-1.5 sm:py-3 bg-card/90 backdrop-blur-sm border-2 border-primary flex-shrink-0">
+              <div className="flex items-center gap-2 sm:gap-8">
                 <div className="text-center">
-                  <div className="text-xs text-muted-foreground font-semibold">SCORE</div>
-                  <div className="text-3xl font-bold text-primary">{score}</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">SCORE</div>
+                  <div className="text-lg sm:text-3xl font-bold text-primary">{score}</div>
                 </div>
-                <div className="h-8 w-px bg-border" />
-                <div className="text-center">
-                  <div className="text-xs text-muted-foreground font-semibold">ELAPSED</div>
-                  <div className="text-2xl font-bold text-accent">{formatTime(getElapsedTime())}</div>
+                <div className="h-6 sm:h-8 w-px bg-border hidden sm:block" />
+                <div className="text-center hidden md:block">
+                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">ELAPSED</div>
+                  <div className="text-base sm:text-2xl font-bold text-accent">{formatTime(getElapsedTime())}</div>
                 </div>
-                <div className="h-8 w-px bg-border" />
+                <div className="h-6 sm:h-8 w-px bg-border" />
                 <div className="text-center">
-                  <div className="text-xs text-muted-foreground font-semibold">TIME LEFT</div>
-                  <div className={`text-3xl font-bold ${
+                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">TIME</div>
+                  <div className={`text-lg sm:text-3xl font-bold ${
                     timeRemaining < 30 ? 'text-red-500 animate-pulse' : 'text-foreground'
                   }`}>{formatTime(timeRemaining)}</div>
                 </div>
               </div>
             </Card>
             
-            <CoinDisplay coins={coins} />
+            <div className="hidden sm:block">
+              <CoinDisplay coins={coins} />
+            </div>
           </div>
         </div>
 
@@ -1011,32 +1016,32 @@ export const GameCanvas = ({
         </div>
 
 
-        {/* Controls */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-4">
+        {/* Controls - Mobile Responsive */}
+        <div className="absolute bottom-4 sm:bottom-8 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto z-20 flex flex-col items-center gap-2 sm:gap-4">
           
           {/* Movement controls */}
           {ballPhase === 'ready' && (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-center">
               <Button
                 variant="outline"
-                size="lg"
+                size="default"
                 onClick={moveLeft}
                 disabled={isThowing || isBallFlying}
-                className="text-lg font-bold px-6 py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+                className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
               >
                 ← LEFT
               </Button>
               
-              <div className="text-sm text-foreground/70 font-semibold min-w-[120px] text-center">
-                Position: {Math.round(ballHorizontalPosition)}%
+              <div className="text-xs sm:text-sm text-foreground/70 font-semibold min-w-[60px] sm:min-w-[120px] text-center">
+                {Math.round(ballHorizontalPosition)}%
               </div>
               
               <Button
                 variant="outline"
-                size="lg"
+                size="default"
                 onClick={moveRight}
                 disabled={isThowing || isBallFlying}
-                className="text-lg font-bold px-6 py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+                className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
               >
                 RIGHT →
               </Button>
@@ -1053,27 +1058,28 @@ export const GameCanvas = ({
             onTouchStart={startCharging}
             onTouchEnd={releaseThrow}
             disabled={isThowing || isBallFlying}
-            className="text-lg font-bold px-8 py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none"
+            className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none w-full sm:w-auto"
           >
             {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
           </Button>
 
           {ballPhase === 'ready' && (
-            <div className="text-sm text-foreground/70 font-semibold">
-              Streak: {consecutiveHits}
+            <div className="text-xs sm:text-sm text-foreground/70 font-semibold flex items-center gap-2">
+              <span>Streak: {consecutiveHits}</span>
+              <span className="sm:hidden">• Coins: {coins}</span>
             </div>
           )}
         </div>
 
         {/* Sound toggle buttons */}
-        <SoundToggle className="absolute top-4 right-24 z-20" />
+        <SoundToggle className="absolute bottom-2 sm:top-4 left-2 sm:right-24 sm:left-auto z-20" />
 
         {/* Restart button */}
         <Button
           variant="outline"
           size="sm"
           onClick={restartGame}
-          className="absolute top-4 right-4 z-20 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground px-3 py-1 text-xs w-20"
+          className="absolute bottom-2 sm:top-4 right-2 sm:right-4 z-20 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground px-2 sm:px-3 py-1 text-[10px] sm:text-xs w-16 sm:w-20"
         >
           RESTART
         </Button>
