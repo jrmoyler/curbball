@@ -7,6 +7,8 @@ import { CoinDisplay } from "./CoinDisplay";
 import { FloatingCoins } from "./FloatingCoins";
 import { CoinParticle } from "./CoinParticle";
 import { HoveringCoin } from "./HoveringCoin";
+import { ShareButton } from "./ShareButton";
+import { saveScore } from "./LocalLeaderboard";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
 import { Volume2, VolumeX } from "lucide-react";
@@ -681,6 +683,14 @@ export const GameCanvas = ({
       setHighScore(finalScore);
     }
     
+    // Save to local leaderboard
+    const newRank = saveScore(finalScore, difficulty);
+    if (newRank && newRank <= 3) {
+      toast.success(`🏆 New Top ${newRank} Score!`, {
+        description: `You made it to the leaderboard!`,
+      });
+    }
+    
     // Track games played
     const newGamesPlayed = gamesPlayed + 1;
     setGamesPlayed(newGamesPlayed);
@@ -1133,6 +1143,7 @@ export const GameCanvas = ({
             </p>
             
             <div className="flex flex-col gap-3 items-center">
+              <ShareButton score={score} coins={coinsEarned} />
               <Button
                 size="lg"
                 onClick={restartGame}
