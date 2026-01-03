@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from "@/components/ui/badge";
 import { ShoppingBag, Lock, Check, Coins, DollarSign, Trophy, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { fbInstant } from "@/lib/fbInstantManager";
 import { initiateStripePurchase } from "@/lib/stripePayments";
 
 export interface BallSkin {
@@ -137,15 +136,7 @@ export const BallShop = ({
   };
 
   const handlePurchaseWithMoney = async (ball: BallSkin) => {
-    if (fbInstant.isFBInstant()) {
-      toast({
-        title: "Payment Coming Soon",
-        description: "Real money purchases will be available soon on Facebook!",
-      });
-      return;
-    }
-    
-    // Use Stripe for standalone web version
+    // Use Stripe for web version
     setIsPurchasing(ball.id);
     try {
       const { url, error, code } = await initiateStripePurchase(ball.id, ball.name, ownedBalls);

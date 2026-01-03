@@ -4,13 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Trophy, Coins, Target, Timer, Award, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { fbInstant } from "@/lib/fbInstantManager";
 import { ConfettiEffect } from "@/components/ConfettiEffect";
 import { soundManager } from "@/lib/soundManager";
 import { toast } from "sonner";
-import { Leaderboard } from "@/components/Leaderboard";
-
-const isFBInstantEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
 
 interface DifficultyStats {
   coins: number;
@@ -41,56 +37,27 @@ export default function Stats() {
     loadUnlockedAchievements();
   }, []);
 
-  const loadAllStats = async () => {
+  const loadAllStats = () => {
     setIsLoading(true);
     
-    if (fbInstant.isFBInstant()) {
-      // Load from Facebook Instant
-      const data = await fbInstant.getPlayerDataAsync([
-        'coins_easy', 'highScore_easy', 'gamesPlayed_easy',
-        'coins_medium', 'highScore_medium', 'gamesPlayed_medium',
-        'coins_hard', 'highScore_hard', 'gamesPlayed_hard'
-      ]);
-      
-      setStats({
-        easy: {
-          coins: data.coins_easy || 0,
-          highScore: data.highScore_easy || 0,
-          gamesPlayed: data.gamesPlayed_easy || 0,
-        },
-        medium: {
-          coins: data.coins_medium || 0,
-          highScore: data.highScore_medium || 0,
-          gamesPlayed: data.gamesPlayed_medium || 0,
-        },
-        hard: {
-          coins: data.coins_hard || 0,
-          highScore: data.highScore_hard || 0,
-          gamesPlayed: data.gamesPlayed_hard || 0,
-        },
-      });
-      
-      setPlayerName(fbInstant.getPlayerName());
-    } else {
-      // Load from localStorage
-      setStats({
-        easy: {
-          coins: parseInt(localStorage.getItem('game-coins-easy') || '0'),
-          highScore: parseInt(localStorage.getItem('game-highScore-easy') || '0'),
-          gamesPlayed: parseInt(localStorage.getItem('game-gamesplayed-easy') || '0'),
-        },
-        medium: {
-          coins: parseInt(localStorage.getItem('game-coins-medium') || '0'),
-          highScore: parseInt(localStorage.getItem('game-highScore-medium') || '0'),
-          gamesPlayed: parseInt(localStorage.getItem('game-gamesplayed-medium') || '0'),
-        },
-        hard: {
-          coins: parseInt(localStorage.getItem('game-coins-hard') || '0'),
-          highScore: parseInt(localStorage.getItem('game-highScore-hard') || '0'),
-          gamesPlayed: parseInt(localStorage.getItem('game-gamesplayed-hard') || '0'),
-        },
-      });
-    }
+    // Load from localStorage
+    setStats({
+      easy: {
+        coins: parseInt(localStorage.getItem('game-coins-easy') || '0'),
+        highScore: parseInt(localStorage.getItem('game-highScore-easy') || '0'),
+        gamesPlayed: parseInt(localStorage.getItem('game-gamesplayed-easy') || '0'),
+      },
+      medium: {
+        coins: parseInt(localStorage.getItem('game-coins-medium') || '0'),
+        highScore: parseInt(localStorage.getItem('game-highScore-medium') || '0'),
+        gamesPlayed: parseInt(localStorage.getItem('game-gamesplayed-medium') || '0'),
+      },
+      hard: {
+        coins: parseInt(localStorage.getItem('game-coins-hard') || '0'),
+        highScore: parseInt(localStorage.getItem('game-highScore-hard') || '0'),
+        gamesPlayed: parseInt(localStorage.getItem('game-gamesplayed-hard') || '0'),
+      },
+    });
     
     setIsLoading(false);
   };
@@ -345,23 +312,6 @@ export default function Stats() {
           ))}
         </div>
 
-        {/* Leaderboards Section */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-foreground">Leaderboards</h2>
-          {isFBInstantEnabled ? (
-            <>
-              <Leaderboard difficulty="easy" />
-              <Leaderboard difficulty="medium" />
-              <Leaderboard difficulty="hard" />
-            </>
-          ) : (
-            <Card className="p-8 text-center">
-              <p className="text-muted-foreground">
-                Leaderboards are available in the Facebook Instant Games version
-              </p>
-            </Card>
-          )}
-        </div>
       </div>
       </div>
     </>

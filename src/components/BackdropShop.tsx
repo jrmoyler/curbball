@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ShoppingBag, Lock, Check, Coins, DollarSign, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { fbInstant } from "@/lib/fbInstantManager";
 import { initiateStripePurchase } from "@/lib/stripePayments";
 
 export interface Backdrop {
@@ -149,15 +148,7 @@ export const BackdropShop = ({
   };
 
   const handlePurchaseWithMoney = async (backdrop: Backdrop) => {
-    if (fbInstant.isFBInstant()) {
-      toast({
-        title: "Payment Coming Soon",
-        description: "Real money purchases will be available soon on Facebook!",
-      });
-      return;
-    }
-    
-    // Use Stripe for standalone web version
+    // Use Stripe for web version
     setIsPurchasing(backdrop.id);
     try {
       const { url, error, code } = await initiateStripePurchase(backdrop.id, backdrop.name, ownedBackdrops);

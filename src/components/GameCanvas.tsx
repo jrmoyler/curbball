@@ -7,15 +7,9 @@ import { CoinDisplay } from "./CoinDisplay";
 import { FloatingCoins } from "./FloatingCoins";
 import { CoinParticle } from "./CoinParticle";
 import { HoveringCoin } from "./HoveringCoin";
-import { ShareButton } from "./ShareButton";
-import { Leaderboard } from "./Leaderboard";
-import { RewardedAdButton } from "./RewardedAdButton";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
 import { Volume2, VolumeX } from "lucide-react";
-import { fbInstant } from "@/lib/fbInstantManager";
-
-const isFBInstantEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
 
 interface Obstacle {
   id: number;
@@ -128,48 +122,24 @@ export const GameCanvas = ({
   
   const currentSuccessChance = Math.max(20, baseSuccessChance - (level - 1) * successChanceDecrease);
 
-  // Load player data from FBInstant or localStorage (difficulty-specific)
+  // Load player data from localStorage (difficulty-specific)
   useEffect(() => {
-    const loadPlayerData = async () => {
-      if (fbInstant.isFBInstant()) {
-        const data = await fbInstant.getPlayerDataAsync([
-          `coins_${difficulty}`, 
-          `highScore_${difficulty}`, 
-          `gamesPlayed_${difficulty}`
-        ]);
-        setCoins(data[`coins_${difficulty}`] || 0);
-        setHighScore(data[`highScore_${difficulty}`] || 0);
-        setGamesPlayed(data[`gamesPlayed_${difficulty}`] || 0);
-        
-        // Preload first interstitial ad
-        const interstitial = await fbInstant.preloadInterstitialAdAsync();
-        setPreloadedInterstitial(interstitial);
-      } else {
-        // Fallback to localStorage (difficulty-specific)
-        const savedCoins = localStorage.getItem(`game-coins-${difficulty}`);
-        const savedHighScore = localStorage.getItem(`game-highScore-${difficulty}`);
-        const savedGamesPlayed = localStorage.getItem(`game-gamesplayed-${difficulty}`);
-        setCoins(savedCoins ? parseInt(savedCoins) : 0);
-        setHighScore(savedHighScore ? parseInt(savedHighScore) : 0);
-        setGamesPlayed(savedGamesPlayed ? parseInt(savedGamesPlayed) : 0);
-      }
+    const loadPlayerData = () => {
+      const savedCoins = localStorage.getItem(`game-coins-${difficulty}`);
+      const savedHighScore = localStorage.getItem(`game-highScore-${difficulty}`);
+      const savedGamesPlayed = localStorage.getItem(`game-gamesplayed-${difficulty}`);
+      setCoins(savedCoins ? parseInt(savedCoins) : 0);
+      setHighScore(savedHighScore ? parseInt(savedHighScore) : 0);
+      setGamesPlayed(savedGamesPlayed ? parseInt(savedGamesPlayed) : 0);
     };
     loadPlayerData();
   }, [difficulty]);
 
-  // Save player data to both localStorage and FBInstant (difficulty-specific)
+  // Save player data to localStorage (difficulty-specific)
   useEffect(() => {
     localStorage.setItem(`game-coins-${difficulty}`, coins.toString());
     localStorage.setItem(`game-highScore-${difficulty}`, highScore.toString());
     localStorage.setItem(`game-gamesplayed-${difficulty}`, gamesPlayed.toString());
-    
-    if (fbInstant.isFBInstant()) {
-      fbInstant.setPlayerDataAsync({ 
-        [`coins_${difficulty}`]: coins, 
-        [`highScore_${difficulty}`]: highScore, 
-        [`gamesPlayed_${difficulty}`]: gamesPlayed 
-      });
-    }
 
     // Notify parent about coin changes
     if (onCoinsChange) {
@@ -678,39 +648,16 @@ export const GameCanvas = ({
     }, flightDuration * 0.6 + 800);
   };
 
-  const restartGame = async () => {
+  const restartGame = () => {
     soundManager.playClick();
     
-    // Update high score and submit to leaderboard only if it's a new high score
+    // Update high score
     if (score > highScore) {
       setHighScore(score);
-      
-      // Update leaderboard ONLY with high score if in Facebook (difficulty-specific)
-      if (fbInstant.isFBInstant()) {
-        await fbInstant.setLeaderboardScore(`leaderboard_${difficulty}`, score);
-      }
     }
     
     const newGamesPlayed = gamesPlayed + 1;
     setGamesPlayed(newGamesPlayed);
-    
-    // Show interstitial ad every 3rd game (frequency cap)
-    if (fbInstant.isFBInstant() && newGamesPlayed % 3 === 0) {
-      try {
-        if (preloadedInterstitial) {
-          await preloadedInterstitial.showAsync();
-          console.log('Interstitial ad shown');
-        } else {
-          await fbInstant.showInterstitialAdAsync();
-        }
-        
-        // Preload next interstitial
-        const nextInterstitial = await fbInstant.preloadInterstitialAdAsync();
-        setPreloadedInterstitial(nextInterstitial);
-      } catch (error) {
-        console.error('Error showing interstitial:', error);
-      }
-    }
     
     setScore(0);
     setLevel(1);
@@ -729,17 +676,12 @@ export const GameCanvas = ({
   };
 
   const handleGameEnd = (finalScore: number, timeTaken: number) => {
-    // Update high score and submit to leaderboard only if it's a new high score
+    // Update high score
     if (finalScore > highScore) {
       setHighScore(finalScore);
-      
-      // Submit ONLY high score to leaderboard with time as extra data (difficulty-specific)
-      if (fbInstant.isFBInstant()) {
-        fbInstant.setLeaderboardScore(`leaderboard_${difficulty}`, finalScore, timeTaken.toString());
-      }
     }
     
-    // Track games played and prepare to show ad
+    // Track games played
     const newGamesPlayed = gamesPlayed + 1;
     setGamesPlayed(newGamesPlayed);
     
@@ -751,22 +693,6 @@ export const GameCanvas = ({
     toast.success("Time's Up!", {
       description: `Final Score: ${finalScore} | Time: ${formatTime(timeTaken)} | Coins: ${coins}`,
     });
-    
-    // Show interstitial ad every 3 games
-    if (newGamesPlayed % 3 === 0) {
-      if (preloadedInterstitial) {
-        setTimeout(async () => {
-          try {
-            await preloadedInterstitial.showAsync();
-            // Preload next ad
-            const nextAd = await fbInstant.preloadInterstitialAdAsync();
-            setPreloadedInterstitial(nextAd);
-          } catch (error) {
-            console.error('Failed to show interstitial:', error);
-          }
-        }, 2000);
-      }
-    }
   };
 
   const handleRewardEarned = (amount: number) => {
@@ -1207,49 +1133,19 @@ export const GameCanvas = ({
             </p>
             
             <div className="flex flex-col gap-3 items-center">
-              <div className="flex gap-2 justify-center flex-wrap">
-                <Button
-                  size="lg"
-                  onClick={restartGame}
-                  className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
-                >
-                  PLAY AGAIN
-                </Button>
-                {isFBInstantEnabled && fbInstant.isFBInstant() && (
-                  <ShareButton score={score} coins={coinsEarned} />
-                )}
-              </div>
-              
-              {isFBInstantEnabled && fbInstant.isFBInstant() && (
-                <button
-                  onClick={() => setShowLeaderboard(!showLeaderboard)}
-                  className="text-primary underline mt-2"
-                >
-                  {showLeaderboard ? "Hide" : "Show"} Leaderboard
-                </button>
-              )}
-              
-              {isFBInstantEnabled && <RewardedAdButton onRewardEarned={handleRewardEarned} />}
+              <Button
+                size="lg"
+                onClick={restartGame}
+                className="text-lg font-bold px-8 bg-primary hover:bg-primary/90"
+              >
+                PLAY AGAIN
+              </Button>
             </div>
           </Card>
           <ConfettiEffect />
         </div>
       )}
 
-      {/* Leaderboard Modal */}
-      {showLeaderboard && gameEnded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-[60] p-4">
-          <div className="relative">
-            <button
-              onClick={() => setShowLeaderboard(false)}
-              className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-8 h-8 flex items-center justify-center hover:bg-destructive/90 z-10"
-            >
-              ✕
-            </button>
-            <Leaderboard difficulty={difficulty} />
-          </div>
-        </div>
-      )}
     </div>
   );
 };
