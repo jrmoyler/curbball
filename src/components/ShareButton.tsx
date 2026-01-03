@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Share2 } from "lucide-react";
-import { fbInstant } from "@/lib/fbInstantManager";
 import { toast } from "@/hooks/use-toast";
 
 interface ShareButtonProps {
@@ -10,33 +9,47 @@ interface ShareButtonProps {
 
 export const ShareButton = ({ score, coins }: ShareButtonProps) => {
   const handleShare = async () => {
-    if (!fbInstant.isFBInstant()) {
+    const shareData = {
+      title: 'Curb Ball',
+      text: `I just scored ${score} points and earned ${coins} coins in Curb Ball! Can you beat my score?`,
+      url: window.location.href,
+    };
+
+    // Check if Web Share API is available
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try {
+        await navigator.share(shareData);
+        toast({
+          title: "Shared!",
+          description: "Your score has been shared",
+        });
+      } catch (error) {
+        // User cancelled or share failed
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Share failed:', error);
+          fallbackShare(shareData.text);
+        }
+      }
+    } else {
+      // Fallback for browsers without Web Share API
+      fallbackShare(shareData.text);
+    }
+  };
+
+  const fallbackShare = (text: string) => {
+    // Copy to clipboard as fallback
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: "Copied to clipboard!",
+        description: "Share your score by pasting it anywhere",
+      });
+    }).catch(() => {
       toast({
         title: "Share unavailable",
-        description: "Sharing is only available in Facebook Instant Games",
-      });
-      return;
-    }
-
-    try {
-      await fbInstant.shareAsync({
-        intent: 'SHARE',
-        text: `I just scored ${score} points and earned ${coins} coins in Coin Toss! Can you beat my score?`,
-        data: { score, coins },
-      });
-
-      toast({
-        title: "Shared!",
-        description: "Your score has been shared with your friends",
-      });
-    } catch (error) {
-      console.error('Share failed:', error);
-      toast({
-        title: "Share failed",
         description: "Could not share at this time",
         variant: "destructive",
       });
-    }
+    });
   };
 
   return (

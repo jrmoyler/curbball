@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3, Circle, Trophy, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { LocalLeaderboard } from "./LocalLeaderboard";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -18,6 +19,7 @@ interface DifficultySelectionProps {
 export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBallShop, onOpenAchievements, onOpenDailyChallenges, onOpenRestorePurchases }: DifficultySelectionProps) => {
   const navigate = useNavigate();
   const [totalCoins, setTotalCoins] = useState(0);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   useEffect(() => {
     const loadCoins = () => {
@@ -66,8 +68,16 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
       <div className="max-w-4xl w-full">
         <div className="text-center mb-8">
-          {/* Stats Button */}
-          <div className="flex justify-end mb-4">
+          {/* Stats & Leaderboard Buttons */}
+          <div className="flex justify-end gap-2 mb-4">
+            <Button
+              onClick={() => setShowLeaderboard(true)}
+              variant="outline"
+              className="gap-2"
+            >
+              <Trophy className="w-4 h-4" />
+              Leaderboard
+            </Button>
             <Button
               onClick={() => navigate('/stats')}
               variant="outline"
@@ -237,6 +247,23 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
           </a>
         </div>
       </div>
+
+      {/* Leaderboard Modal */}
+      {showLeaderboard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute -top-2 -right-2 z-10 rounded-full bg-background"
+              onClick={() => setShowLeaderboard(false)}
+            >
+              ✕
+            </Button>
+            <LocalLeaderboard showTabs={true} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
