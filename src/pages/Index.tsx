@@ -1,22 +1,17 @@
 import { useState, useEffect } from "react";
 import { GameCanvas, Difficulty } from "@/components/GameCanvas";
 import { DifficultySelection } from "@/components/DifficultySelection";
-import { FBInstantLoading } from "@/components/FBInstantLoading";
 import { BackdropShop, Backdrop } from "@/components/BackdropShop";
 import { BallShop, BallSkin } from "@/components/BallShop";
 import { Achievements, Achievement } from "@/components/Achievements";
 import { DailyChallenges, DailyChallenge } from "@/components/DailyChallenges";
 import { RestorePurchases } from "@/components/RestorePurchases";
-import { fbInstant } from "@/lib/fbInstantManager";
 import { useToast } from "@/hooks/use-toast";
 import { checkPurchaseRedirect, clearPurchaseParams, verifyPurchase } from "@/lib/stripePayments";
-
-const isFBInstantEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
 
 const Index = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState(0);
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [showShop, setShowShop] = useState(false);
   const [showBallShop, setShowBallShop] = useState(false);
@@ -103,161 +98,53 @@ const Index = () => {
   const [dailyChallenges, setDailyChallenges] = useState<DailyChallenge[]>(initializeDailyChallenges());
 
   useEffect(() => {
-    const initializeFBInstant = async () => {
-      // Only initialize FB Instant if enabled
-      if (!isFBInstantEnabled) {
-        // Load from localStorage for standalone version
-        const storedBackdrops = localStorage.getItem('ownedBackdrops');
-        if (storedBackdrops) {
-          setOwnedBackdrops(JSON.parse(storedBackdrops));
-        }
-        const storedCurrentBackdrop = localStorage.getItem('currentBackdrop');
-        if (storedCurrentBackdrop) {
-          setCurrentBackdrop(storedCurrentBackdrop);
-        }
-        
-        const storedBalls = localStorage.getItem('ownedBalls');
-        if (storedBalls) {
-          setOwnedBalls(JSON.parse(storedBalls));
-        }
-        const storedCurrentBall = localStorage.getItem('currentBall');
-        if (storedCurrentBall) {
-          setCurrentBall(storedCurrentBall);
-        }
-        
-        const storedAchievements = localStorage.getItem('achievements');
-        if (storedAchievements) {
-          setAchievements(JSON.parse(storedAchievements));
-        }
-        
-        const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
-        const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
-        const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
-        
-        const storedChallenges = localStorage.getItem('curbball_dailyChallenges');
-        if (storedChallenges) {
-          const parsedChallenges = JSON.parse(storedChallenges) as DailyChallenge[];
-          const now = Date.now();
-          if (parsedChallenges[0]?.expiresAt < now) {
-            const newChallenges = initializeDailyChallenges();
-            setDailyChallenges(newChallenges);
-            localStorage.setItem('curbball_dailyChallenges', JSON.stringify(newChallenges));
-          } else {
-            setDailyChallenges(parsedChallenges);
-          }
-        }
-        
-        setCurrentCoins(coinsEasy + coinsMedium + coinsHard);
-        setIsLoading(false);
-        return;
+    const initializeGame = () => {
+      // Load from localStorage
+      const storedBackdrops = localStorage.getItem('ownedBackdrops');
+      if (storedBackdrops) {
+        setOwnedBackdrops(JSON.parse(storedBackdrops));
+      }
+      const storedCurrentBackdrop = localStorage.getItem('currentBackdrop');
+      if (storedCurrentBackdrop) {
+        setCurrentBackdrop(storedCurrentBackdrop);
       }
       
-      try {
-        // Initialize FBInstant SDK
-        await fbInstant.initializeAsync();
-        
-        // Simulate loading progress
-        const progressInterval = setInterval(() => {
-          setLoadingProgress((prev) => {
-            const next = prev + 10;
-            fbInstant.setLoadingProgress(next);
-            
-            if (next >= 100) {
-              clearInterval(progressInterval);
-            }
-            return next;
-          });
-        }, 100);
-
-        // Wait for loading to complete
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        
-        // Start the game
-        await fbInstant.startGameAsync();
-        
-        // Load backdrop, ball, achievement, and daily challenge data
-        const data = await fbInstant.getPlayerDataAsync([
-          'ownedBackdrops', 
-          'currentBackdrop',
-          'ownedBalls',
-          'currentBall',
-          'achievements',
-          'dailyChallenges',
-          'coins_easy',
-          'coins_medium', 
-          'coins_hard'
-        ]);
-        if (data.ownedBackdrops) {
-          setOwnedBackdrops(data.ownedBackdrops);
-        }
-        if (data.currentBackdrop) {
-          setCurrentBackdrop(data.currentBackdrop);
-        }
-        if (data.ownedBalls) {
-          setOwnedBalls(data.ownedBalls);
-        }
-        if (data.currentBall) {
-          setCurrentBall(data.currentBall);
-        }
-        if (data.achievements) {
-          setAchievements(data.achievements);
-        }
-        if (data.dailyChallenges) {
-          // Check if challenges have expired
-          const now = Date.now();
-          const loadedChallenges = data.dailyChallenges as DailyChallenge[];
-          if (loadedChallenges[0]?.expiresAt < now) {
-            // Reset challenges if expired
-            const newChallenges = initializeDailyChallenges();
-            setDailyChallenges(newChallenges);
-            await fbInstant.setPlayerDataAsync({ dailyChallenges: newChallenges });
-          } else {
-            setDailyChallenges(loadedChallenges);
-          }
-        }
-        // Load coins from all difficulties (use easy as default)
-        const totalCoins = (data.coins_easy || 0) + (data.coins_medium || 0) + (data.coins_hard || 0);
-        setCurrentCoins(totalCoins);
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error('FBInstant initialization error:', error);
-        // Continue to game even if FBInstant fails (web fallback)
-        // Load from localStorage
-        const savedBackdrops = localStorage.getItem('ownedBackdrops');
-        const savedCurrent = localStorage.getItem('currentBackdrop');
-        const savedBalls = localStorage.getItem('ownedBalls');
-        const savedCurrentBall = localStorage.getItem('currentBall');
-        const savedAchievements = localStorage.getItem('achievements');
-        const storedChallenges = localStorage.getItem('curbball_dailyChallenges');
-        const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
-        const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
-        const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
-        
-        if (savedBackdrops) setOwnedBackdrops(JSON.parse(savedBackdrops));
-        if (savedCurrent) setCurrentBackdrop(savedCurrent);
-        if (savedBalls) setOwnedBalls(JSON.parse(savedBalls));
-        if (savedCurrentBall) setCurrentBall(savedCurrentBall);
-        if (savedAchievements) setAchievements(JSON.parse(savedAchievements));
-        
-        if (storedChallenges) {
-          const parsedChallenges = JSON.parse(storedChallenges) as DailyChallenge[];
-          const now = Date.now();
-          if (parsedChallenges[0]?.expiresAt < now) {
-            const newChallenges = initializeDailyChallenges();
-            setDailyChallenges(newChallenges);
-            localStorage.setItem('curbball_dailyChallenges', JSON.stringify(newChallenges));
-          } else {
-            setDailyChallenges(parsedChallenges);
-          }
-        }
-        
-        setCurrentCoins(coinsEasy + coinsMedium + coinsHard);
-        setIsLoading(false);
+      const storedBalls = localStorage.getItem('ownedBalls');
+      if (storedBalls) {
+        setOwnedBalls(JSON.parse(storedBalls));
       }
+      const storedCurrentBall = localStorage.getItem('currentBall');
+      if (storedCurrentBall) {
+        setCurrentBall(storedCurrentBall);
+      }
+      
+      const storedAchievements = localStorage.getItem('achievements');
+      if (storedAchievements) {
+        setAchievements(JSON.parse(storedAchievements));
+      }
+      
+      const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
+      const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
+      const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
+      
+      const storedChallenges = localStorage.getItem('curbball_dailyChallenges');
+      if (storedChallenges) {
+        const parsedChallenges = JSON.parse(storedChallenges) as DailyChallenge[];
+        const now = Date.now();
+        if (parsedChallenges[0]?.expiresAt < now) {
+          const newChallenges = initializeDailyChallenges();
+          setDailyChallenges(newChallenges);
+          localStorage.setItem('curbball_dailyChallenges', JSON.stringify(newChallenges));
+        } else {
+          setDailyChallenges(parsedChallenges);
+        }
+      }
+      
+      setCurrentCoins(coinsEasy + coinsMedium + coinsHard);
+      setIsLoading(false);
     };
 
-    initializeFBInstant();
+    initializeGame();
   }, []);
 
   // Handle Stripe purchase redirect
@@ -286,9 +173,6 @@ const Index = () => {
             setCurrentBall(result.itemId);
             localStorage.setItem('ownedBalls', JSON.stringify(newOwned));
             localStorage.setItem('currentBall', result.itemId);
-            if (fbInstant.isFBInstant()) {
-              fbInstant.setPlayerDataAsync({ ownedBalls: newOwned, currentBall: result.itemId });
-            }
             toast({
               title: "🎉 Ball Skin Unlocked!",
               description: `Your new ball skin is now available!`,
@@ -300,9 +184,6 @@ const Index = () => {
             setCurrentBackdrop(result.itemId);
             localStorage.setItem('ownedBackdrops', JSON.stringify(newOwned));
             localStorage.setItem('currentBackdrop', result.itemId);
-            if (fbInstant.isFBInstant()) {
-              fbInstant.setPlayerDataAsync({ ownedBackdrops: newOwned, currentBackdrop: result.itemId });
-            }
             toast({
               title: "🎉 Backdrop Unlocked!",
               description: `Your new backdrop is now available!`,
@@ -324,12 +205,19 @@ const Index = () => {
     handlePurchaseRedirect();
   }, [ownedBalls, ownedBackdrops, toast]);
 
-  const handleLoadingComplete = () => {
-    setIsLoading(false);
-  };
-
-  if (isLoading && isFBInstantEnabled) {
-    return <FBInstantLoading onComplete={handleLoadingComplete} />;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-sky-400 to-sky-600">
+        <div className="text-center">
+          <img 
+            src="/curbball-logo.png" 
+            alt="Curb Ball" 
+            className="w-full max-w-sm mx-auto drop-shadow-2xl animate-pulse"
+          />
+          <p className="text-white mt-4">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   const handlePurchaseWithCoins = (backdrop: Backdrop) => {
@@ -341,9 +229,6 @@ const Index = () => {
     // Save to storage
     localStorage.setItem('ownedBackdrops', JSON.stringify(newOwned));
     localStorage.setItem('currentBackdrop', backdrop.id);
-    if (fbInstant.isFBInstant()) {
-      fbInstant.setPlayerDataAsync({ ownedBackdrops: newOwned, currentBackdrop: backdrop.id });
-    }
   };
 
   const handlePurchaseWithMoney = (backdrop: Backdrop) => {
@@ -354,17 +239,11 @@ const Index = () => {
     // Save to storage
     localStorage.setItem('ownedBackdrops', JSON.stringify(newOwned));
     localStorage.setItem('currentBackdrop', backdrop.id);
-    if (fbInstant.isFBInstant()) {
-      fbInstant.setPlayerDataAsync({ ownedBackdrops: newOwned, currentBackdrop: backdrop.id });
-    }
   };
 
   const handleSelectBackdrop = (backdropId: string) => {
     setCurrentBackdrop(backdropId);
     localStorage.setItem('currentBackdrop', backdropId);
-    if (fbInstant.isFBInstant()) {
-      fbInstant.setPlayerDataAsync({ currentBackdrop: backdropId });
-    }
   };
 
   const handleBallPurchaseWithCoins = (ball: BallSkin) => {
@@ -376,9 +255,6 @@ const Index = () => {
     // Save to storage
     localStorage.setItem('ownedBalls', JSON.stringify(newOwned));
     localStorage.setItem('currentBall', ball.id);
-    if (fbInstant.isFBInstant()) {
-      fbInstant.setPlayerDataAsync({ ownedBalls: newOwned, currentBall: ball.id });
-    }
   };
 
   const handleBallPurchaseWithMoney = (ball: BallSkin) => {
@@ -389,9 +265,6 @@ const Index = () => {
     // Save to storage
     localStorage.setItem('ownedBalls', JSON.stringify(newOwned));
     localStorage.setItem('currentBall', ball.id);
-    if (fbInstant.isFBInstant()) {
-      fbInstant.setPlayerDataAsync({ ownedBalls: newOwned, currentBall: ball.id });
-    }
   };
 
   const handleSelectBall = (ballId: string) => {
@@ -401,14 +274,8 @@ const Index = () => {
       const newOwned = [...ownedBalls, ballId];
       setOwnedBalls(newOwned);
       localStorage.setItem('ownedBalls', JSON.stringify(newOwned));
-      if (fbInstant.isFBInstant()) {
-        fbInstant.setPlayerDataAsync({ ownedBalls: newOwned });
-      }
     }
     localStorage.setItem('currentBall', ballId);
-    if (fbInstant.isFBInstant()) {
-      fbInstant.setPlayerDataAsync({ currentBall: ballId });
-    }
   };
 
   const updateAchievementProgress = (achievementId: string, newProgress: number, maxScore?: number) => {
@@ -434,9 +301,6 @@ const Index = () => {
       
       // Save to storage
       localStorage.setItem('achievements', JSON.stringify(updated));
-      if (fbInstant.isFBInstant()) {
-        fbInstant.setPlayerDataAsync({ achievements: updated });
-      }
       
       return updated;
     });
@@ -466,9 +330,6 @@ const Index = () => {
       
       // Save to storage
       localStorage.setItem('curbball_dailyChallenges', JSON.stringify(updated));
-      if (fbInstant.isFBInstant()) {
-        fbInstant.setPlayerDataAsync({ dailyChallenges: updated });
-      }
       
       return updated;
     });
@@ -494,16 +355,10 @@ const Index = () => {
           onRestoreBalls={(balls) => {
             setOwnedBalls(balls);
             localStorage.setItem('ownedBalls', JSON.stringify(balls));
-            if (fbInstant.isFBInstant()) {
-              fbInstant.setPlayerDataAsync({ ownedBalls: balls });
-            }
           }}
           onRestoreBackdrops={(backdrops) => {
             setOwnedBackdrops(backdrops);
             localStorage.setItem('ownedBackdrops', JSON.stringify(backdrops));
-            if (fbInstant.isFBInstant()) {
-              fbInstant.setPlayerDataAsync({ ownedBackdrops: backdrops });
-            }
           }}
         />
 

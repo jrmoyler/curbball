@@ -2,12 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Target, Zap, Flame, ShoppingBag, Coins, Sparkles, BarChart3, Circle, Trophy, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
-import { fbInstant } from "@/lib/fbInstantManager";
 import { useNavigate } from "react-router-dom";
-import { ShareButton } from "./ShareButton";
-import { RewardedAdButton } from "./RewardedAdButton";
-
-const isFBInstantEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
 
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -25,17 +20,11 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
   const [totalCoins, setTotalCoins] = useState(0);
 
   useEffect(() => {
-    const loadCoins = async () => {
-      if (fbInstant.isFBInstant()) {
-        const data = await fbInstant.getPlayerDataAsync(['coins_easy', 'coins_medium', 'coins_hard']);
-        const total = (data.coins_easy || 0) + (data.coins_medium || 0) + (data.coins_hard || 0);
-        setTotalCoins(total);
-      } else {
-        const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
-        const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
-        const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
-        setTotalCoins(coinsEasy + coinsMedium + coinsHard);
-      }
+    const loadCoins = () => {
+      const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
+      const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
+      const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
+      setTotalCoins(coinsEasy + coinsMedium + coinsHard);
     };
     loadCoins();
   }, []);
