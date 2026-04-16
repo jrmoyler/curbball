@@ -2,15 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy, Medal, Award, User, MapPin } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getProfile, UserProfile } from "./ProfileModal";
+import { getProfile } from "./ProfileModal";
 import { US_STATES } from "@/lib/usStates";
+import type { LeaderboardEntry, UserProfile } from "@/types";
 
-export interface LeaderboardEntry {
-  rank: number;
-  score: number;
-  date: string;
-  difficulty: "easy" | "medium" | "hard";
-}
+export type { LeaderboardEntry };
 
 interface LocalLeaderboardProps {
   difficulty?: "easy" | "medium" | "hard";

@@ -1,14 +1,12 @@
-// Sound Manager using Web Audio API for programmatic sound generation
 class SoundManager {
   private audioContext: AudioContext | null = null;
   private isMuted: boolean = false;
   private volume: number = 0.5;
-  
+
   constructor() {
-    // Check localStorage for saved preferences
     const savedMute = localStorage.getItem('game-sound-muted');
     const savedVolume = localStorage.getItem('game-sound-volume');
-    
+
     if (savedMute !== null) {
       this.isMuted = savedMute === 'true';
     }
@@ -46,7 +44,6 @@ class SoundManager {
     oscillator.stop(ctx.currentTime + duration);
   }
 
-  // Ball throw whoosh sound
   playThrow() {
     if (this.isMuted) return;
     
@@ -68,7 +65,6 @@ class SoundManager {
     oscillator.stop(ctx.currentTime + 0.3);
   }
 
-  // Ball impact sound (hit on curb)
   playImpact() {
     if (this.isMuted) return;
     
@@ -90,11 +86,9 @@ class SoundManager {
     oscillator.stop(ctx.currentTime + 0.1);
   }
 
-  // Success sound (successful catch)
   playSuccess() {
     if (this.isMuted) return;
-    
-    // Play ascending notes
+
     const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
     notes.forEach((freq, index) => {
       setTimeout(() => {
@@ -103,7 +97,6 @@ class SoundManager {
     });
   }
 
-  // Fail sound (miss)
   playFail() {
     if (this.isMuted) return;
     
@@ -125,7 +118,6 @@ class SoundManager {
     oscillator.stop(ctx.currentTime + 0.4);
   }
 
-  // Level up fanfare
   playLevelUp() {
     if (this.isMuted) return;
     
@@ -137,7 +129,6 @@ class SoundManager {
     });
   }
 
-  // Button click sound
   playClick() {
     this.playTone(800, 0.05, 'square', 0.2);
   }

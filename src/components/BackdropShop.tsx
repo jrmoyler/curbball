@@ -5,15 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ShoppingBag, Lock, Check, Coins, DollarSign, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { initiateStripePurchase } from "@/lib/stripePayments";
+import type { Backdrop } from "@/types";
 
-export interface Backdrop {
-  id: string;
-  name: string;
-  description: string;
-  imageUrl: string;
-  coinPrice: number;
-  usdPrice: number;
-}
+export type { Backdrop };
 
 interface BackdropShopProps {
   onClose: () => void;

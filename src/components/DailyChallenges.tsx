@@ -3,17 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Coins, Check, Clock } from "lucide-react";
+import type { DailyChallenge } from "@/types";
 
-export interface DailyChallenge {
-  id: string;
-  title: string;
-  description: string;
-  goal: number;
-  progress: number;
-  completed: boolean;
-  coinReward: number;
-  expiresAt: number; // timestamp
-}
+export type { DailyChallenge };
 
 interface DailyChallengesProps {
   onClose: () => void;

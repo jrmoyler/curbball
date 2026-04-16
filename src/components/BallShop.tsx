@@ -6,17 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingBag, Lock, Check, Coins, DollarSign, Trophy, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { initiateStripePurchase } from "@/lib/stripePayments";
+import type { BallSkin } from "@/types";
 
-export interface BallSkin {
-  id: string;
-  name: string;
-  description: string;
-  imageUrl: string;
-  coinPrice: number;
-  usdPrice: number;
-  achievementRequired?: string; // Achievement ID required to unlock
-  achievementName?: string; // Display name of achievement
-}
+export type { BallSkin };
 
 interface BallShopProps {
   onClose: () => void;

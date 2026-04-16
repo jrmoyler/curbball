@@ -8,6 +8,7 @@ import { DailyChallenges, DailyChallenge } from "@/components/DailyChallenges";
 import { RestorePurchases } from "@/components/RestorePurchases";
 import { useToast } from "@/hooks/use-toast";
 import { checkPurchaseRedirect, clearPurchaseParams, verifyPurchase } from "@/lib/stripePayments";
+import { loadTotalCoins, formatKebabLabel } from "@/lib/utils";
 
 const Index = () => {
   const { toast } = useToast();

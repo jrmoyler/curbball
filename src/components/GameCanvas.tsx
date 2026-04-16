@@ -12,6 +12,7 @@ import { SoundToggle } from "./SoundToggle";
 import { saveScore } from "./LocalLeaderboard";
 import { toast } from "sonner";
 import { soundManager } from "@/lib/soundManager";
+import type { Difficulty } from "@/types";
 
 interface Obstacle {
   id: number;
@@ -32,8 +33,6 @@ interface BullseyeTarget {
   position: number; // 0-100 percentage horizontal position
   direction: 1 | -1; // 1 for right, -1 for left
 }
-
-export type Difficulty = "easy" | "medium" | "hard";
 
 interface GameCanvasProps {
   difficulty: Difficulty;
@@ -59,9 +58,7 @@ export const GameCanvas = ({
   const [coins, setCoins] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [gamesPlayed, setGamesPlayed] = useState(0);
-  const [preloadedInterstitial, setPreloadedInterstitial] = useState<unknown>(null);
   const [showFloatingCoins, setShowFloatingCoins] = useState(false);
   const [floatingCoinAmount, setFloatingCoinAmount] = useState(0);
   const [coinParticles, setCoinParticles] = useState<Array<{ id: number }>>([]);
@@ -704,7 +701,6 @@ export const GameCanvas = ({
     setBallPosition({ x: 50, y: 80 });
     setGameStarted(false);
     setTimeRemaining(TIME_LIMIT);
-    setShowLeaderboard(false);
     setFinalTime(0);
     toast.info("Game restarted! Good luck!");
   };
@@ -736,11 +732,6 @@ export const GameCanvas = ({
       description: `Final Score: ${finalScore} | Time: ${formatTime(timeTaken)} | Coins: ${coins}`,
     });
   };
-
-  const handleRewardEarned = (amount: number) => {
-    setCoins(coins + amount);
-  };
-
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -777,9 +768,11 @@ export const GameCanvas = ({
     return `/balls/${ballId}.png`;
   };
 
+  const ballImageUrl = getBallImageUrl(currentBall);
+
   return (
-    <div 
-      className="relative w-full h-screen overflow-hidden bg-top bg-no-repeat" 
+    <div
+      className="relative w-full h-screen overflow-hidden bg-top bg-no-repeat"
       style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: '70%' }}
     >
       {/* Starting Screen */}
@@ -1067,10 +1060,10 @@ export const GameCanvas = ({
                 }`,
               }}
             >
-              {getBallImageUrl(currentBall) ? (
-                <img 
-                  src={getBallImageUrl(currentBall)!} 
-                  alt="Ball" 
+              {ballImageUrl ? (
+                <img
+                  src={ballImageUrl}
+                  alt="Ball"
                   className={`w-full h-full object-contain ${ballPhase === 'hit' ? 'animate-pulse' : ''}`}
                 />
               ) : (

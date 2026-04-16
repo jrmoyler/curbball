@@ -3,17 +3,9 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Lock, CheckCircle2 } from "lucide-react";
+import type { Achievement } from "@/types";
 
-export interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  requirement: number;
-  progress: number;
-  unlocked: boolean;
-  reward: string; // ball skin id
-  icon: string;
-}
+export type { Achievement };
 
 interface AchievementsProps {
   isOpen: boolean;

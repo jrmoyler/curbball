@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LocalLeaderboard } from "./LocalLeaderboard";
 import { ProfileModal, getProfile } from "./ProfileModal";
+import type { Difficulty } from "@/types";
+import { loadTotalCoins } from "@/lib/utils";
 
-export type Difficulty = "easy" | "medium" | "hard";
+export type { Difficulty };
 
 interface DifficultySelectionProps {
   onSelectDifficulty: (difficulty: Difficulty) => void;
@@ -32,15 +34,7 @@ export const DifficultySelection = ({ onSelectDifficulty, onOpenShop, onOpenBall
   }, [showProfile]);
 
   useEffect(() => {
-    const loadCoins = () => {
-      const coinsEasy = parseInt(localStorage.getItem('game-coins-easy') || '0');
-      const coinsMedium = parseInt(localStorage.getItem('game-coins-medium') || '0');
-      const coinsHard = parseInt(localStorage.getItem('game-coins-hard') || '0');
-      const coinsBonus = parseInt(localStorage.getItem('game-coins-bonus') || '0');
-      const coinsSpent = parseInt(localStorage.getItem('game-coins-spent') || '0');
-      setTotalCoins(Math.max(0, coinsEasy + coinsMedium + coinsHard + coinsBonus - coinsSpent));
-    };
-    loadCoins();
+    setTotalCoins(loadTotalCoins());
   }, []);
 
   const difficulties = [

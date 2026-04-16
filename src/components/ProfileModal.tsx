@@ -7,12 +7,9 @@ import { User, MapPin, Save, X } from "lucide-react";
 import { US_STATES } from "@/lib/usStates";
 import { isValidName } from "@/lib/profanityFilter";
 import { useToast } from "@/hooks/use-toast";
+import type { UserProfile } from "@/types";
 
-export interface UserProfile {
-  firstName: string;
-  state: string;
-  city: string;
-}
+export type { UserProfile };
 
 const PROFILE_STORAGE_KEY = "curbball_profile";
 
