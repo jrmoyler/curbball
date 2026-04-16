@@ -72,12 +72,12 @@ export const GameCanvas = ({
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
   const [ballPosition, setBallPosition] = useState({ x: 50, y: 80 });
-  const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
+  const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50);
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
   
   const [gameStarted, setGameStarted] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(180); // 3 minutes in seconds
+  const [timeRemaining, setTimeRemaining] = useState(180);
   const [gameEnded, setGameEnded] = useState(false);
   const [finalTime, setFinalTime] = useState(0);
   const obstacleIdRef = useRef(0);
@@ -86,13 +86,13 @@ export const GameCanvas = ({
   const chargeSoundIntervalRef = useRef<number | null>(null);
   const particleIdRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
-  const bullseyeHitsRef = useRef(0); // Dedicated counter for bullseye challenge
+  const bullseyeHitsRef = useRef(0);
   const [swipeAngle, setSwipeAngle] = useState(0);
   const [showBackConfirm, setShowBackConfirm] = useState(false);
 
-  const TIME_LIMIT = 180; // 3 minutes in seconds
+  const TIME_LIMIT = 180;
 
-  // Memoised star positions so they don't re-randomise on every render
+  // Memoised so positions don't re-randomise on every render
   const starPositions = useMemo(() =>
     Array.from({ length: 100 }, (_, i) => ({
       id: i,
@@ -102,7 +102,6 @@ export const GameCanvas = ({
       opacity: 0.3 + Math.random() * 0.7,
     })), []);
   
-  // Difficulty settings
   const difficultySettings = {
     easy: {
       baseSuccessChance: 45,
@@ -133,7 +132,6 @@ export const GameCanvas = ({
   
   const currentSuccessChance = Math.max(20, baseSuccessChance - (level - 1) * successChanceDecrease);
 
-  // Load player data from localStorage (difficulty-specific)
   useEffect(() => {
     const loadPlayerData = () => {
       const savedCoins = localStorage.getItem(`game-coins-${difficulty}`);
@@ -146,20 +144,17 @@ export const GameCanvas = ({
     loadPlayerData();
   }, [difficulty]);
 
-  // Save player data to localStorage (difficulty-specific)
   useEffect(() => {
     localStorage.setItem(`game-coins-${difficulty}`, coins.toString());
     localStorage.setItem(`game-highScore-${difficulty}`, highScore.toString());
     localStorage.setItem(`game-gamesplayed-${difficulty}`, gamesPlayed.toString());
 
-    // Notify parent about coin changes
     if (onCoinsChange) {
       onCoinsChange(coins);
     }
   }, [coins, highScore, gamesPlayed, difficulty, onCoinsChange]);
 
 
-  // Timer countdown
   useEffect(() => {
     if (!gameStarted || gameEnded || timeRemaining <= 0) return;
     
@@ -181,7 +176,6 @@ export const GameCanvas = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStarted, gameEnded, timeRemaining, score]);
 
-  // Handle keyboard controls for horizontal movement
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isThowing || isBallFlying || ballPhase !== 'ready') return;
@@ -213,17 +207,15 @@ export const GameCanvas = ({
     if (!isSuccess) return 0;
 
     const isPerfectTiming = throwPower >= 60 && throwPower <= 80;
-    let baseCoins = 2; // Base coins for any successful throw
+    let baseCoins = 2;
 
-    // Power-based bonus (1-5 coins based on how close to sweet spot)
     if (isPerfectTiming) {
-      baseCoins = 5; // Perfect timing gives maximum coins
+      baseCoins = 5;
     } else if (throwPower >= 50 && throwPower <= 90) {
-      baseCoins = 3; // Good timing gives medium coins
+      baseCoins = 3;
     }
 
-    // Streak bonus
-    const streakBonus = Math.floor(consecutiveHits / 3); // +1 coin every 3 consecutive hits
+    const streakBonus = Math.floor(consecutiveHits / 3); // +1 coin per 3-hit streak
     
     return baseCoins + streakBonus;
   };
@@ -234,14 +226,12 @@ export const GameCanvas = ({
     }));
     setCoinParticles(newParticles);
     
-    // Clear particles after animation
     setTimeout(() => {
       setCoinParticles([]);
     }, 2000);
   };
 
   useEffect(() => {
-    // Spawn obstacles randomly
     const spawnInterval = setInterval(() => {
       if (Math.random() > currentDifficultySettings.obstacleSpawnChance) {
         const newObstacle: Obstacle = {
@@ -259,20 +249,19 @@ export const GameCanvas = ({
   }, [currentDifficultySettings]);
 
   useEffect(() => {
-    // Spawn curb coins randomly
     const spawnCoinInterval = setInterval(() => {
-      // Spawn coin if there are less than 3 coins on the curb
+      // Cap at 3 visible coins at once
       setCurbCoins((prev) => {
         if (prev.filter(c => !c.collected).length >= 3) return prev;
         
         if (Math.random() > 0.6) {
-          const coinValues = [5, 10, 15]; // Different coin values
+          const coinValues = [5, 10, 15];
           const value = coinValues[Math.floor(Math.random() * coinValues.length)];
-          const lifetime = 5000 + Math.random() * 5000; // 5-10 seconds
+          const lifetime = 5000 + Math.random() * 5000;
           
           const newCoin: CurbCoin = {
             id: curbCoinIdRef.current++,
-            position: 15 + Math.random() * 70, // Random position between 15-85%
+            position: 15 + Math.random() * 70,
             value: value,
             collected: false,
             expiresAt: Date.now() + lifetime,

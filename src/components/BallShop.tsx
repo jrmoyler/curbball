@@ -32,7 +32,6 @@ export const BallShop = ({
   unlockedAchievements = [],
 }: BallShopProps) => {
   const { toast } = useToast();
-  const [selectedBall, setSelectedBall] = useState<BallSkin | null>(null);
   const [isPurchasing, setIsPurchasing] = useState<string | null>(null);
 
   const ballSkins: BallSkin[] = [
@@ -120,7 +119,6 @@ export const BallShop = ({
     }
 
     onPurchaseWithCoins(ball);
-    setSelectedBall(null);
     toast({
       title: "Ball Skin Unlocked!",
       description: `You purchased ${ball.name} for ${ball.coinPrice} coins!`,
@@ -128,7 +126,6 @@ export const BallShop = ({
   };
 
   const handlePurchaseWithMoney = async (ball: BallSkin) => {
-    // Use Stripe for web version
     setIsPurchasing(ball.id);
     try {
       const { url, error, code } = await initiateStripePurchase(ball.id, ball.name, ownedBalls);
@@ -173,8 +170,7 @@ export const BallShop = ({
   };
 
   return (
-    <>
-      <Dialog open={true} onOpenChange={() => onClose()}>
+    <Dialog open={true} onOpenChange={() => onClose()}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl">
@@ -322,7 +318,6 @@ export const BallShop = ({
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
-    </>
+    </Dialog>
   );
 };

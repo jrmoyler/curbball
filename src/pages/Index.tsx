@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { GameCanvas, Difficulty } from "@/components/GameCanvas";
+import { GameCanvas } from "@/components/GameCanvas";
+import type { Difficulty } from "@/types";
 import { DifficultySelection } from "@/components/DifficultySelection";
 import { BackdropShop, Backdrop } from "@/components/BackdropShop";
 import { BallShop, BallSkin } from "@/components/BallShop";
@@ -8,7 +9,7 @@ import { DailyChallenges, DailyChallenge } from "@/components/DailyChallenges";
 import { RestorePurchases } from "@/components/RestorePurchases";
 import { useToast } from "@/hooks/use-toast";
 import { checkPurchaseRedirect, clearPurchaseParams, verifyPurchase } from "@/lib/stripePayments";
-import { loadTotalCoins, formatKebabLabel } from "@/lib/utils";
+import { loadTotalCoins } from "@/lib/utils";
 
 const Index = () => {
   const { toast } = useToast();
