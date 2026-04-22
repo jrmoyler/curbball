@@ -73,6 +73,7 @@ export const GameCanvas = ({
   const [gameWon, setGameWon] = useState(false);
   const [power, setPower] = useState(0);
   const [isCharging, setIsCharging] = useState(false);
+  const isChargingRef = useRef(false);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
@@ -96,6 +97,7 @@ export const GameCanvas = ({
   const obstacleIdRef = useRef(0);
   const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
+  useEffect(() => { return () => { if (chargeIntervalRef.current) cancelAnimationFrame(chargeIntervalRef.current); }; }, []);
   const chargeSoundIntervalRef = useRef<number | null>(null);
   const particleIdRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -477,6 +479,7 @@ export const GameCanvas = ({
     if (isThowing || isBallFlying) return;
     
     setIsCharging(true);
+    isChargingRef.current = true;
     setPower(0);
     
     let lastTime = performance.now();
@@ -498,16 +501,21 @@ export const GameCanvas = ({
         return next;
       });
 
-      chargeIntervalRef.current = requestAnimationFrame(chargeLoop);
+      if (isChargingRef.current) {
+        chargeIntervalRef.current = requestAnimationFrame(chargeLoop);
+      }
     };
 
-    chargeIntervalRef.current = requestAnimationFrame(chargeLoop);
+    if (isChargingRef.current) {
+      chargeIntervalRef.current = requestAnimationFrame(chargeLoop);
+    }
   };
 
   const releaseThrow = () => {
     if (!isCharging || !gameStarted) return;
     
     setIsCharging(false);
+    isChargingRef.current = false;
     if (chargeIntervalRef.current) {
       cancelAnimationFrame(chargeIntervalRef.current);
       chargeIntervalRef.current = null;
@@ -570,13 +578,13 @@ export const GameCanvas = ({
 
   const throwBall = (throwPower: number, angle: number = 0) => {
     const speed = (300 + Math.min(throwPower, 100) * 1.1) * Math.max(0.8, viewport.scaleY);
-    const vx = Math.sin((angle * Math.PI) / 180) * speed * 0.55;
+    const vx = Math.sin((angle * Math.PI) / 180) * speed * 0.55 * 0.045;
     const vy = speed;
     throwBallFromVelocity(vx, vy);
   };
 
   const throwBallFromGesture = (velocityX: number, velocityY: number, rect: DOMRect) => {
-    const mappedVx = Math.max(-520, Math.min(520, (velocityX / rect.width) * 700));
+    const mappedVx = Math.max(-520, Math.min(520, (velocityX / rect.width) * 700)) * 0.045;
     const mappedVy = Math.max(260, Math.min(420, (-velocityY / rect.height) * 900));
     throwBallFromVelocity(mappedVx, mappedVy);
   };
@@ -855,7 +863,7 @@ export const GameCanvas = ({
                 </div>
                 <div className="h-6 sm:h-8 w-px bg-border" />
                 <div className="text-center">
-                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">LIVES/ATTEMPTS</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold whitespace-nowrap"><span className="sm:hidden">LIVES</span><span className="hidden sm:inline">LIVES/ATTEMPTS</span></div>
                   <div className="text-lg sm:text-3xl font-bold text-orange-400">{attempts}</div>
                 </div>
               </div>
