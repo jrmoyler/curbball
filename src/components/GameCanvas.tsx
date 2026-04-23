@@ -69,7 +69,7 @@ export const GameCanvas = ({
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: 50, direction: 1 });
-  const [ballPosition, setBallPosition] = useState({ x: 50, y: 8 });
+  const [ballPosition, setBallPosition] = useState({ x: 50, y: 30 });
   const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
@@ -101,7 +101,7 @@ export const GameCanvas = ({
   const playStateRef = useRef<PlayState>("IDLE");
   const ballPhysicsRef = useRef({
     x: 50,
-    y: 8,
+    y: 30,
     vx: 0,
     vy: 0,
     spin: 0,
@@ -222,21 +222,29 @@ export const GameCanvas = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStarted, gameEnded, timeRemaining, score]);
 
-  // Handle keyboard controls for horizontal movement
+  // Handle keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
-      
-      if (e.key === 'ArrowLeft') {
-        setBallHorizontalPosition(prev => Math.max(10, prev - 5));
-      } else if (e.key === 'ArrowRight') {
-        setBallHorizontalPosition(prev => Math.min(90, prev + 5));
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        startCharging();
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        releaseThrow();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isThrowing, isBallFlying, ballPhase]);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isThrowing, isBallFlying, ballPhase, isCharging, gameStarted]);
 
   const moveLeft = () => {
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
@@ -438,8 +446,8 @@ export const GameCanvas = ({
       if ((playStateRef.current === "SCORED" || playStateRef.current === "MISSED") && !resetTimeout) {
         setPlayState("RESET");
         resetTimeout = window.setTimeout(() => {
-          ballPhysicsRef.current = { x: 50, y: 8, vx: 0, vy: 0, spin: 0, hasBounced: false };
-          setBallPosition({ x: 50, y: 8 });
+          ballPhysicsRef.current = { x: 50, y: 30, vx: 0, vy: 0, spin: 0, hasBounced: false };
+          setBallPosition({ x: 50, y: 30 });
           setBallHorizontalPosition(50);
           setIsBallFlying(false);
           setIsThrowing(false);
@@ -529,17 +537,21 @@ export const GameCanvas = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!touchStartRef.current || isThrowing || isBallFlying || ballPhase !== 'ready') return;
+    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const localX = e.clientX - rect.left;
-    const localY = e.clientY - rect.top;
-    const deltaX = localX - touchStartRef.current.x;
-    const deltaY = localY - touchStartRef.current.y;
-    
-    // Calculate angle from swipe direction (left/right)
-    const angle = Math.atan2(deltaX, -deltaY) * (180 / Math.PI);
-    setSwipeAngle(angle);
+
+    // Always track horizontal position — works for mouse hover and touch drag
+    setBallHorizontalPosition(Math.min(90, Math.max(10, (localX / rect.width) * 100)));
+
+    if (touchStartRef.current) {
+      const localY = e.clientY - rect.top;
+      const deltaX = localX - touchStartRef.current.x;
+      const deltaY = localY - touchStartRef.current.y;
+      const angle = Math.atan2(deltaX, -deltaY) * (180 / Math.PI);
+      setSwipeAngle(angle);
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -586,7 +598,7 @@ export const GameCanvas = ({
 
     ballPhysicsRef.current = {
       x: ballHorizontalPosition,
-      y: 8,
+      y: 30,
       vx,
       vy,
       spin: vx * 0.0015,
@@ -614,7 +626,7 @@ export const GameCanvas = ({
     setGameEnded(false);
     setGameWon(false);
     setObstacles([]);
-    setBallPosition({ x: 50, y: 8 });
+    setBallPosition({ x: 50, y: 30 });
     setGameStarted(false);
     setTimeRemaining(TIME_LIMIT);
     setFinalTime(0);
@@ -705,7 +717,7 @@ export const GameCanvas = ({
                 <div className="text-2xl">🎯</div>
                 <div>
                   <h3 className="font-semibold text-lg">Aim & Throw</h3>
-                  <p className="text-sm">Use ← / → buttons (or arrow keys) to aim, then <strong>hold the throw button</strong> to charge power and release to throw. On mobile, swipe up to throw!</p>
+                  <p className="text-sm">Move your <strong>finger</strong> (mobile) or <strong>mouse</strong> (desktop) to aim. Hold the throw button or press <strong>Space</strong> to charge power, then release to throw!</p>
                 </div>
               </div>
 
@@ -777,9 +789,9 @@ export const GameCanvas = ({
       )}
 
       {/* Game area */}
-      <div 
+      <div
         ref={gameAreaRef}
-        className="relative h-full w-full flex flex-col"
+        className="relative h-full w-full"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -858,14 +870,13 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Play zone */}
-        <div className="flex-1 relative flex items-end">
-          <div className={`w-full relative transition-all duration-1000 ${
-            gameWon ? 'bg-gradient-to-b from-purple-800 to-purple-950' : ''
-          }`} style={{ 
-            background: gameWon ? undefined : "hsl(var(--game-street))",
-            height: `${Math.max(180, viewport.height * 0.42)}px`,
-          }}>
+        {/* Street — absolute at bottom so backdrop fills screen above */}
+        <div className={`absolute bottom-0 left-0 right-0 transition-all duration-1000 ${
+          gameWon ? 'bg-gradient-to-b from-purple-800 to-purple-950' : ''
+        }`} style={{
+          background: gameWon ? undefined : "hsl(var(--game-street))",
+          height: `${Math.max(220, viewport.height * 0.38)}px`,
+        }}>
             {/* Curb */}
             <div
               className={`absolute top-0 left-0 right-0 h-4 transition-all duration-1000 ${
@@ -981,7 +992,7 @@ export const GameCanvas = ({
                 </defs>
                 <line
                   x1={ballHorizontalPosition}
-                  y1="92"
+                  y1={100 - ballPosition.y}
                   x2={bullseyeTarget.position}
                   y2="10"
                   stroke="#facc15"
@@ -1033,52 +1044,19 @@ export const GameCanvas = ({
           </div>
         </div>
 
-
-        {/* Controls - flex-none so they never overlap the play zone */}
-        <div className="flex-none z-20 pb-2 pt-1 px-2 flex flex-col items-center gap-2">
-
-          {/* Movement controls row */}
-          {ballPhase === 'ready' && (
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-center">
-              <Button
-                variant="outline"
-                size="default"
-                onClick={moveLeft}
-                disabled={isThrowing || isBallFlying}
-                className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
-              >
-                ← LEFT
-              </Button>
-
-              <div className="text-xs sm:text-sm text-foreground/70 font-semibold min-w-[60px] sm:min-w-[120px] text-center">
-                {Math.round(ballHorizontalPosition)}%
-              </div>
-
-              <Button
-                variant="outline"
-                size="default"
-                onClick={moveRight}
-                disabled={isThrowing || isBallFlying}
-                className="text-sm sm:text-lg font-bold px-3 sm:px-6 py-2 sm:py-3 border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground flex-1 sm:flex-none max-w-[100px] sm:max-w-none"
-              >
-                RIGHT →
-              </Button>
-            </div>
-          )}
-
+        {/* Controls overlay — sits on top of the street at the bottom */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 pb-2 pt-1 px-2 flex flex-col items-center gap-1 bg-black/25 backdrop-blur-sm">
           {/* Throw button + utility buttons row */}
           <div className="flex items-center gap-2 w-full justify-center">
             <SoundToggle className="flex-none z-20" />
 
             <Button
               size="lg"
-              onPointerDown={startCharging}
-              onPointerUp={releaseThrow}
-              onPointerLeave={() => {
-                if (isCharging) releaseThrow();
-              }}
+              onPointerDown={(e) => { e.stopPropagation(); startCharging(); }}
+              onPointerUp={(e) => { e.stopPropagation(); releaseThrow(); }}
+              onPointerLeave={() => { if (isCharging) releaseThrow(); }}
               disabled={isThrowing || isBallFlying}
-              className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none flex-1 sm:flex-none"
+              className="text-base sm:text-lg font-bold px-6 sm:px-8 py-4 sm:py-5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl animate-pulse-glow select-none flex-1 sm:flex-none"
             >
               {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
             </Button>
@@ -1094,9 +1072,10 @@ export const GameCanvas = ({
           </div>
 
           {ballPhase === 'ready' && (
-            <div className="text-xs sm:text-sm text-foreground/70 font-semibold flex items-center gap-2">
+            <div className="text-xs text-foreground/60 font-semibold flex items-center gap-3">
               <span>Streak: {consecutiveHits}</span>
-              <span className="sm:hidden">• Coins: {coins}</span>
+              <span>•</span>
+              <span>{Math.round(ballHorizontalPosition)}%</span>
             </div>
           )}
         </div>
