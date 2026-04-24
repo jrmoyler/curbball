@@ -99,7 +99,6 @@ export const GameCanvas = ({
   const gameAreaRef = useRef<HTMLDivElement | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const scoreRef = useRef(0);
-  const isChargingRef = useRef(false);
   const gameStartedRef = useRef(false);
   const gameEndedRef = useRef(false);
   const [swipeAngle, setSwipeAngle] = useState(0);
@@ -107,7 +106,6 @@ export const GameCanvas = ({
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(false);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
-  const gameAreaRef = useRef<HTMLDivElement | null>(null);
   const lastFrameRef = useRef(0);
   const obstaclesRef = useRef<Obstacle[]>([]);
   const bullseyeRef = useRef<BullseyeTarget>({ position: 50, direction: 1 });
