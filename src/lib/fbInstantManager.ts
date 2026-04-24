@@ -48,11 +48,15 @@ class FBInstantManager {
   private isSupported: boolean = false;
   private isInitialized: boolean = false;
   private isEnabled: boolean;
+  private rewardedPlacementId: string;
+  private interstitialPlacementId: string;
 
   constructor() {
     // Check if FB Instant is enabled via environment variable
     this.isEnabled = import.meta.env.VITE_FB_INSTANT === 'true';
     this.isSupported = this.isEnabled && typeof window !== 'undefined' && !!window.FBInstant;
+    this.rewardedPlacementId = import.meta.env.VITE_FB_REWARDED_PLACEMENT_ID || '';
+    this.interstitialPlacementId = import.meta.env.VITE_FB_INTERSTITIAL_PLACEMENT_ID || '';
   }
 
   /**
@@ -296,10 +300,13 @@ class FBInstantManager {
       return false;
     }
 
+    if (!this.rewardedPlacementId) {
+      console.warn('Missing VITE_FB_REWARDED_PLACEMENT_ID');
+      return false;
+    }
+
     try {
-      const rewardedVideo = await window.FBInstant.getRewardedVideoAsync(
-        'YOUR_REWARDED_VIDEO_PLACEMENT_ID'
-      );
+      const rewardedVideo = await window.FBInstant.getRewardedVideoAsync(this.rewardedPlacementId);
       
       await rewardedVideo.loadAsync();
       await rewardedVideo.showAsync();
@@ -321,10 +328,13 @@ class FBInstantManager {
       return false;
     }
 
+    if (!this.interstitialPlacementId) {
+      console.warn('Missing VITE_FB_INTERSTITIAL_PLACEMENT_ID');
+      return false;
+    }
+
     try {
-      const interstitial = await window.FBInstant.getInterstitialAdAsync(
-        'YOUR_INTERSTITIAL_PLACEMENT_ID'
-      );
+      const interstitial = await window.FBInstant.getInterstitialAdAsync(this.interstitialPlacementId);
       
       await interstitial.loadAsync();
       await interstitial.showAsync();
@@ -345,10 +355,13 @@ class FBInstantManager {
       return null;
     }
 
+    if (!this.interstitialPlacementId) {
+      console.warn('Missing VITE_FB_INTERSTITIAL_PLACEMENT_ID');
+      return null;
+    }
+
     try {
-      const interstitial = await window.FBInstant.getInterstitialAdAsync(
-        'YOUR_INTERSTITIAL_PLACEMENT_ID'
-      );
+      const interstitial = await window.FBInstant.getInterstitialAdAsync(this.interstitialPlacementId);
       await interstitial.loadAsync();
       console.log('Interstitial ad preloaded');
       return interstitial;
