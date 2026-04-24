@@ -38,7 +38,7 @@ This repository is now configured for Vercel static deployment using `vercel.jso
 ### Why this works
 
 - `vercel.json` routes all paths to `index.html` so React Router works on hard refresh and deep links.
-- Security headers are added for baseline production hardening.
+- Security headers are added for baseline production hardening, including a CSP that allows Facebook Instant Games embedding.
 
 ## "AAA-ready" improvement checklist
 
