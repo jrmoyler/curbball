@@ -943,9 +943,6 @@ export const GameCanvas = ({
   const throwBall = (throwPower: number, angle: number = 0) => {
     if (isThrowing || isBallFlying || !gameStarted || isPausedRef.current) return;
     const layout = layoutRef.current;
-    const startX = ballPhysicsRef.current.x || layout.playerStartX;
-    const targetDx = bullseyeRef.current.x - startX;
-    const targetDy = bullseyeRef.current.y - layout.playerStartY;
     const targetDx = bullseyeRef.current.position - ballHorizontalPosition;
     const targetDy = TARGET_Y - PLAYER_START_Y;
     const baseAngle = Math.atan2(targetDy, targetDx);
