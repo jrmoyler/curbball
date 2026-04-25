@@ -87,7 +87,7 @@ export const GameCanvas = ({
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
   const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: MOBILE_LAYOUT.TARGET_START_X, direction: 1 });
   const [ballPosition, setBallPosition] = useState({ x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y_PERCENT });
-  const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
+  const [ballHorizontalPosition, setBallHorizontalPosition] = useState(MOBILE_LAYOUT.PLAYER_START_X); // 0-100 percentage
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
   const [playState, setPlayState] = useState<PlayState>("IDLE");
@@ -652,7 +652,8 @@ export const GameCanvas = ({
           setBallPhase("hit");
           soundManager.playImpact();
 
-          const pointsEarned = Math.abs(bullseyeRef.current.position - b.x) < 6 ? 60 : 10;
+          const bullseyeHit = Math.abs(bullseyeRef.current.position - b.x) < 6;
+          const pointsEarned = bullseyeHit ? 60 : 10;
           const coinsGained = calculateCoinsEarned(powerRef.current, true);
           setScore((prev) => {
             const newScore = prev + pointsEarned;
@@ -668,8 +669,10 @@ export const GameCanvas = ({
           });
           setCoins((prev) => prev + coinsGained);
           setCoinsEarned((prev) => prev + coinsGained);
-          bullseyeHitsRef.current += 1;
-          onChallengeProgress?.("bullseye_5", bullseyeHitsRef.current);
+          if (bullseyeHit) {
+            bullseyeHitsRef.current += 1;
+            onChallengeProgress?.("bullseye_5", bullseyeHitsRef.current);
+          }
           setShowConfetti(true);
         }
 
@@ -690,7 +693,8 @@ export const GameCanvas = ({
         }
 
         const speedPx = Math.hypot((b.vx * viewport.width) / 100, (b.vy * viewport.height) / 100);
-        if (speedPx < 8 && b.hasBounced) {
+        const ballHasSettled = speedPx < 8;
+        if (ballHasSettled) {
           if (b.hitType === "target") {
             resolveAttempt({ hitType: "target", success: true, delayMs: 750 });
           } else {
@@ -779,7 +783,7 @@ export const GameCanvas = ({
     const localX = e.clientX - rect.left;
     const localY = e.clientY - rect.top;
 
-    setPlayState("AIMING");
+    setPlayStateSafe("AIMING");
     setBallHorizontalPosition(Math.min(90, Math.max(10, (localX / rect.width) * 100)));
     touchStartRef.current = {
       x: localX,
@@ -893,7 +897,7 @@ export const GameCanvas = ({
     setFinalTime(0);
     setAttempts(5);
     attemptResolvedRef.current = true;
-    setPlayStateSafe("IDLE");
+      setPlayStateSafe("IDLE");
     toast.info("Game restarted! Good luck!");
   };
 
@@ -1019,7 +1023,7 @@ export const GameCanvas = ({
             <button
               onClick={() => {
                 setGameStarted(true);
-                setPlayState("IDLE");
+                setPlayStateSafe("IDLE");
               }}
               className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all transform hover:scale-105 shadow-lg"
             >
