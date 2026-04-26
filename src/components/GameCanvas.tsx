@@ -1198,7 +1198,7 @@ export const GameCanvas = ({
           {visibleCurbCoins.map((coin) => (
             <div
               key={coin.id}
-              className={`absolute z-35 transition-all duration-300 ${coin.collected ? "opacity-0 scale-150" : "opacity-100 scale-100"}`}
+              className={`absolute z-[35] transition-all duration-300 ${coin.collected ? "opacity-0 scale-150" : "opacity-100 scale-100"}`}
               style={{
                 left: coin.x,
                 top: coin.y,
@@ -1265,7 +1265,7 @@ export const GameCanvas = ({
         </div>
 
         {DEBUG_LAYOUT && (
-          <div className="absolute inset-0 z-45 pointer-events-none text-[10px] font-mono text-white">
+          <div className="absolute inset-0 z-[45] pointer-events-none text-[10px] font-mono text-white">
             <div className="absolute left-0 right-0 h-px bg-lime-400" style={{ top: layoutState.roadTopY }} />
             <div className="absolute left-0 right-0 h-px bg-red-400" style={{ top: layoutState.roadBottomY }} />
             <div className="absolute h-3 w-3 rounded-full bg-lime-400" style={{ left: layoutState.playerStartX, top: layoutState.playerStartY, transform: "translate(-50%, -50%)" }} />
@@ -1448,6 +1448,5 @@ export const GameCanvas = ({
       )}
 
     </div>
-  </div>
   );
 };
