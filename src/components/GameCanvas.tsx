@@ -52,29 +52,32 @@ type GameLayout = {
 };
 
 const computeGameLayout = (width: number, height: number): GameLayout => {
-  const roadTopY = height * 0.61;
-  const roadBottomY = height * 0.88;
+  const hudBottomY = height * 0.18;
+  const roadTopY = height * 0.68;
+  const controlsTopY = height * 0.86;
+  const roadBottomY = controlsTopY;
+  const roadH = roadBottomY - roadTopY;
+
   return {
     screenW: width,
     screenH: height,
-    hudBottomY: height * 0.16,
-    farCurbY: height * 0.59,
+    hudBottomY,
+    farCurbY: roadTopY - Math.max(8, height * 0.012),
     roadTopY,
     roadBottomY,
-    controlsTopY: height * 0.88,
+    controlsTopY,
     playerStartX: width * 0.72,
-    playerStartY: roadBottomY - (roadBottomY - roadTopY) * 0.25,
-    targetX: width * 0.28,
-    targetY: roadTopY + (roadBottomY - roadTopY) * 0.18,
+    playerStartY: roadTopY + roadH * 0.70,
+    targetX: width * 0.24,
+    targetY: roadTopY + roadH * 0.22,
     ballRadius: Math.max(13, width * 0.035),
     targetRadius: Math.max(22, width * 0.06),
-    coinMinY: roadTopY + (roadBottomY - roadTopY) * 0.10,
-    coinMaxY: roadTopY + (roadBottomY - roadTopY) * 0.55,
+    coinMinY: roadTopY + roadH * 0.18,
+    coinMaxY: roadTopY + roadH * 0.62,
   };
 };
 
 const DEBUG_GAME_CANVAS = false;
-const DEBUG_LAYOUT = false;
 
 type PlayState = "IDLE" | "AIMING" | "THROWING" | "BALL_IN_PLAY" | "RESOLVING" | "SCORED" | "MISSED" | "RESET";
 
@@ -1101,7 +1104,14 @@ export const GameCanvas = ({
   return (
     <div 
       className="fixed inset-0 m-0 block w-screen overflow-hidden bg-center bg-no-repeat"
-      style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: "cover", backgroundPosition: "center 18%", height: "100dvh" }}
+      style={{
+        backgroundImage: `url(${getBackdropUrl()})`,
+        backgroundSize: "auto 100%",
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center top",
+        backgroundColor: "#171923",
+        height: "100dvh",
+      }}
     >
       {/* Starting Screen */}
       {isStartScreen && (
@@ -1196,7 +1206,7 @@ export const GameCanvas = ({
           <>
         {/* HUD - Mobile Responsive */}
         <div
-          className="absolute left-2 right-2 z-20 flex flex-wrap justify-between items-start gap-1.5"
+          className="absolute left-2 right-2 z-50 flex flex-wrap justify-between items-start gap-1.5"
           style={{ top: "max(0.4rem, env(safe-area-inset-top))", maxHeight: `${layoutState.hudBottomY}px` }}
         >
           <div className="flex items-center gap-1.5 sm:gap-3">
@@ -1283,19 +1293,39 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Scene layers: full background -> road -> gameplay objects */}
+        {/* Scene layers: backdrop -> road -> gameplay objects */}
         <div
-          className={`absolute left-0 right-0 transition-all duration-700 ${
+          className={`absolute left-0 right-0 z-10 overflow-hidden transition-all duration-700 ${
             gameWon ? "bg-gradient-to-b from-purple-800 to-purple-950" : ""
           }`}
           style={{
-            top: `${layoutState.roadTopY}px`,
-            bottom: `${layoutState.screenH - layoutState.roadBottomY}px`,
-            background: gameWon ? undefined : "hsl(var(--game-street))",
+            top: layoutState.roadTopY,
+            height: layoutState.roadBottomY - layoutState.roadTopY,
+            background: gameWon
+              ? undefined
+              : "linear-gradient(180deg, rgba(38,38,38,0.96) 0%, rgba(31,31,31,0.98) 45%, rgba(24,24,24,1) 100%)",
+            boxShadow: "0 -10px 24px rgba(0,0,0,0.28)",
           }}
         >
-          <div className={`absolute top-0 left-0 right-0 h-4 ${gameWon ? "bg-gradient-to-b from-yellow-400 to-yellow-600" : "bg-gradient-to-b from-gray-400 to-gray-600"}`} />
-          <div className={`absolute top-[42%] left-0 right-0 h-1 opacity-80 ${gameWon ? "bg-purple-400" : "bg-yellow-400"}`} />
+          <div
+            className="absolute left-0 right-0 top-0"
+            style={{
+              height: Math.max(10, layoutState.screenH * 0.014),
+              background: gameWon
+                ? "linear-gradient(180deg, #fde047 0%, #ca8a04 100%)"
+                : "linear-gradient(180deg, #c6ced3 0%, #7d878e 100%)",
+              borderBottom: "1px solid rgba(255,255,255,0.25)",
+            }}
+          />
+          <div
+            className="absolute left-0 right-0"
+            style={{
+              top: "48%",
+              height: 3,
+              background: gameWon ? "rgba(192,132,252,0.86)" : "rgba(245,196,0,0.86)",
+              boxShadow: gameWon ? "0 0 8px rgba(192,132,252,0.25)" : "0 0 8px rgba(245,196,0,0.25)",
+            }}
+          />
 
           {obstacles.map((obs) => (
             <div key={obs.id} className="absolute transition-all" style={{ left: `${obs.position}%`, bottom: "14%" }}>
@@ -1304,13 +1334,21 @@ export const GameCanvas = ({
           ))}
         </div>
 
-        <div className="absolute left-0 right-0 h-1 bg-gray-300/90 shadow-md pointer-events-none" style={{ top: `${layoutState.farCurbY}px` }} />
+        <div
+          className="absolute left-0 right-0 z-10 pointer-events-none"
+          style={{
+            top: layoutState.farCurbY,
+            height: Math.max(2, layoutState.screenH * 0.004),
+            background: "rgba(226,232,240,0.72)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+          }}
+        />
 
         <div className="absolute inset-0 pointer-events-none">
           {visibleCurbCoins.map((coin) => (
             <div
               key={coin.id}
-              className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 opacity-100 scale-100"
+              className="absolute z-20 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 opacity-100 scale-100"
               style={{ left: `${coin.x}px`, top: `${coin.y}px` }}
             >
               <div className="relative animate-bounce">
@@ -1322,7 +1360,7 @@ export const GameCanvas = ({
             </div>
           ))}
 
-          <div className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-75" style={{ left: `${bullseyeTarget.x}px`, top: `${bullseyeTarget.y}px` }}>
+          <div className="absolute z-30 -translate-x-1/2 -translate-y-1/2 transition-all duration-75" style={{ left: `${bullseyeTarget.x}px`, top: `${bullseyeTarget.y}px` }}>
             <div className="relative">
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-red-500 animate-pulse" />
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white" />
@@ -1332,7 +1370,7 @@ export const GameCanvas = ({
           </div>
 
           {ballPhase === "ready" && gameStarted && difficulty !== "hard" && (
-            <svg className="absolute inset-0 w-full h-full opacity-75" viewBox={`0 0 ${layoutState.screenW} ${layoutState.screenH}`} preserveAspectRatio="none">
+            <svg className="absolute inset-0 z-[35] w-full h-full opacity-75" viewBox={`0 0 ${layoutState.screenW} ${layoutState.screenH}`} preserveAspectRatio="none">
               <defs>
                 <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
                   <polygon points="0 0, 6 3, 0 6" fill="#facc15" />
@@ -1343,7 +1381,7 @@ export const GameCanvas = ({
           )}
 
           <div
-            className={`absolute ${ballPhase === "missed" ? "opacity-60" : ""}`}
+            className={`absolute z-40 ${ballPhase === "missed" ? "opacity-60" : ""}`}
             style={{
               width: `${layoutState.ballRadius * 2}px`,
               height: `${layoutState.ballRadius * 2}px`,
@@ -1364,35 +1402,39 @@ export const GameCanvas = ({
 
         {/* Controls - single bottom overlay for mobile */}
         {isPlaying && !showBackConfirm && (
-        <div className="absolute left-0 right-0 z-20 flex flex-col items-center gap-2 bg-black/30 px-2 py-2 backdrop-blur-sm" style={{ top: `${layoutState.controlsTopY}px`, height: "min(12dvh, 112px)", paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}>
-          {ballPhase === "ready" && (
-            <div className="flex items-center gap-2 w-full justify-center">
-              <Button variant="outline" size="sm" onClick={moveLeft} disabled={isThrowing || isBallFlying} className="min-h-[44px] px-3">←</Button>
-              <Button variant="outline" size="sm" onClick={moveRight} disabled={isThrowing || isBallFlying} className="min-h-[44px] px-3">→</Button>
+        <div
+          className="absolute left-0 right-0 z-50 px-3"
+          style={{
+            top: layoutState.controlsTopY,
+            height: layoutState.screenH - layoutState.controlsTopY,
+            paddingBottom: "max(env(safe-area-inset-bottom), 14px)",
+          }}
+        >
+          <div className="h-full flex items-center justify-between gap-3">
+            {ballPhase === "ready" && (
+              <div className="flex flex-none items-center gap-2">
+                <Button variant="outline" size="sm" onClick={moveLeft} disabled={isThrowing || isBallFlying} className="h-11 min-w-[42px] px-3">←</Button>
+                <Button variant="outline" size="sm" onClick={moveRight} disabled={isThrowing || isBallFlying} className="h-11 min-w-[42px] px-3">→</Button>
+              </div>
+            )}
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+              <SoundToggle className="flex-none" />
+              <Button
+                size="lg"
+                onPointerDown={(e) => { e.stopPropagation(); startCharging(); }}
+                onPointerUp={(e) => { e.stopPropagation(); releaseThrow(); }}
+                onPointerLeave={() => { if (isCharging) releaseThrow(); }}
+                disabled={isThrowing || isBallFlying}
+                className="h-14 max-h-[58px] min-w-0 flex-1 px-3 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl animate-pulse-glow select-none sm:text-sm"
+              >
+                {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={restartGame} aria-label="Restart game" className="h-11 flex-none px-2 text-xs sm:px-3 sm:text-sm">
+                Restart
+              </Button>
             </div>
-          )}
-          <div className="flex items-center gap-2 w-full justify-center">
-            <SoundToggle className="flex-none" />
-            <Button
-              size="lg"
-              onPointerDown={(e) => { e.stopPropagation(); startCharging(); }}
-              onPointerUp={(e) => { e.stopPropagation(); releaseThrow(); }}
-              onPointerLeave={() => { if (isCharging) releaseThrow(); }}
-              disabled={isThrowing || isBallFlying}
-              className="text-sm font-bold px-6 py-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl animate-pulse-glow select-none flex-1 max-w-[320px]"
-            >
-              {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={restartGame} aria-label="Restart game" className="min-h-[44px] px-3">
-              Restart
-            </Button>
           </div>
         </div>
-        )}
-        {DEBUG_LAYOUT && (
-          <div className="absolute right-2 top-2 z-[60] rounded bg-black/70 px-2 py-1 text-xs text-white">
-            {Math.round(layoutState.controlsTopY)}px
-          </div>
         )}
         </>
         )}
