@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card";
 import { ConfettiEffect } from "./ConfettiEffect";
 import { ThrowMeter } from "./ThrowMeter";
 import { CoinDisplay } from "./CoinDisplay";
-import { HoveringCoin } from "./HoveringCoin";
 import { ShareButton } from "./ShareButton";
 import { SoundToggle } from "./SoundToggle";
 import { saveScore } from "./LocalLeaderboard";
@@ -20,36 +19,91 @@ interface Obstacle {
 
 interface CurbCoin {
   id: number;
-  position: number; // 0-100 percentage horizontal position
+  x: number;
+  y: number;
+  radius: number;
   value: number; // coin value (5, 10, or 15)
   collected: boolean;
   expiresAt: number; // timestamp when coin should disappear
 }
 
 interface BullseyeTarget {
-  position: number; // 0-100 percentage horizontal position
+  x: number;
+  y: number;
   direction: 1 | -1; // 1 for right, -1 for left
 }
 
-const MOBILE_LAYOUT = {
-  HUD_BOTTOM_PERCENT: 16,
-  FAR_CURB_PERCENT: 60,
-  ROAD_TOP_PERCENT: 61,
-  HUD_BOTTOM_PERCENT: 18,
-  FAR_CURB_PERCENT: 60,
-  ROAD_TOP_PERCENT: 62,
-  ROAD_BOTTOM_PERCENT: 88,
-  CONTROLS_TOP_PERCENT: 88,
-  PLAYER_START_X: 72,
-  TARGET_START_X: 25,
-} as const;
+type GameLayout = {
+  screenW: number;
+  screenH: number;
+  hudBottomY: number;
+  farCurbY: number;
+  roadTopY: number;
+  roadBottomY: number;
+  controlsTopY: number;
+  playerStartX: number;
+  playerStartY: number;
+  targetX: number;
+  targetY: number;
+  ballRadius: number;
+  targetRadius: number;
+  coinMinY: number;
+  coinMaxY: number;
+};
 
-const ROAD_HEIGHT_PERCENT = MOBILE_LAYOUT.ROAD_BOTTOM_PERCENT - MOBILE_LAYOUT.ROAD_TOP_PERCENT;
-const PLAYER_START_Y_PERCENT = MOBILE_LAYOUT.ROAD_BOTTOM_PERCENT - ROAD_HEIGHT_PERCENT * 0.22;
-const TARGET_Y_PERCENT = MOBILE_LAYOUT.ROAD_TOP_PERCENT + ROAD_HEIGHT_PERCENT * 0.18;
+const computeGameLayout = (width: number, height: number): GameLayout => {
+  const roadTopY = height * 0.61;
+  const roadBottomY = height * 0.88;
+  return {
+    screenW: width,
+    screenH: height,
+    hudBottomY: height * 0.16,
+    farCurbY: height * 0.59,
+    roadTopY,
+    roadBottomY,
+    controlsTopY: height * 0.88,
+    playerStartX: width * 0.72,
+    playerStartY: roadBottomY - (roadBottomY - roadTopY) * 0.25,
+    targetX: width * 0.28,
+    targetY: roadTopY + (roadBottomY - roadTopY) * 0.18,
+    ballRadius: Math.max(13, width * 0.035),
+    targetRadius: Math.max(22, width * 0.06),
+    coinMinY: roadTopY + (roadBottomY - roadTopY) * 0.10,
+    coinMaxY: roadTopY + (roadBottomY - roadTopY) * 0.55,
+  };
+};
+
+const DEBUG_GAME_CANVAS = false;
+  const hudBottomY = height * 0.17;
+  const controlsTopY = height * 0.84;
+
+  const roadTopY = height * 0.60;
+  const roadBottomY = controlsTopY;
+  const roadH = roadBottomY - roadTopY;
+
+  return {
+    screenW: width,
+    screenH: height,
+    hudBottomY,
+    farCurbY: roadTopY - Math.max(6, height * 0.01),
+    roadTopY,
+    roadBottomY,
+    controlsTopY,
+    playerStartX: width * 0.72,
+    playerStartY: roadTopY + roadH * 0.72,
+    targetX: width * 0.30,
+    targetY: roadTopY + roadH * 0.22,
+    ballRadius: Math.max(13, width * 0.035),
+    targetRadius: Math.max(22, width * 0.06),
+    coinMinY: roadTopY + roadH * 0.16,
+    coinMaxY: roadTopY + roadH * 0.58,
+  };
+};
+
+const INITIAL_LAYOUT = computeGameLayout(390, 844);
+const DEBUG_LAYOUT = false;
 
 type PlayState = "IDLE" | "AIMING" | "THROWING" | "BALL_IN_PLAY" | "RESOLVING" | "SCORED" | "MISSED" | "RESET";
-type PlayState = "IDLE" | "AIMING" | "THROWING" | "BALL_IN_PLAY" | "SCORED" | "MISSED" | "RESET";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -77,9 +131,6 @@ export const GameCanvas = ({
   const [highScore, setHighScore] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
   const [gamesPlayed, setGamesPlayed] = useState(0);
-  const [showFloatingCoins, setShowFloatingCoins] = useState(false);
-  const [floatingCoinAmount, setFloatingCoinAmount] = useState(0);
-  const [coinParticles, setCoinParticles] = useState<Array<{ id: number }>>([]);
   const [consecutiveHits, setConsecutiveHits] = useState(0);
   const [isThrowing, setIsThrowing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -89,19 +140,15 @@ export const GameCanvas = ({
   const isChargingRef = useRef(false);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [curbCoins, setCurbCoins] = useState<CurbCoin[]>([]);
-  const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ position: MOBILE_LAYOUT.TARGET_START_X, direction: 1 });
-  const [ballPosition, setBallPosition] = useState({ x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y_PERCENT });
-  const [ballHorizontalPosition, setBallHorizontalPosition] = useState(50); // 0-100 percentage
+  const initialLayout = computeGameLayout(window.innerWidth, window.innerHeight);
+  const initialLayout = INITIAL_LAYOUT;
+  const [layoutState, setLayoutState] = useState<GameLayout>(initialLayout);
+  const [bullseyeTarget, setBullseyeTarget] = useState<BullseyeTarget>({ x: initialLayout.targetX, y: initialLayout.targetY, direction: 1 });
+  const [ballPosition, setBallPosition] = useState({ x: initialLayout.playerStartX, y: initialLayout.playerStartY });
   const [isBallFlying, setIsBallFlying] = useState(false);
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
   const [playState, setPlayState] = useState<PlayState>("IDLE");
   const [attempts, setAttempts] = useState(5);
-  const [viewport, setViewport] = useState(() => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-    scaleX: window.innerWidth / 1280,
-    scaleY: window.innerHeight / 720,
-  }));
   
   const [gameStarted, setGameStarted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(180); // 3 minutes in seconds
@@ -110,11 +157,10 @@ export const GameCanvas = ({
   const obstacleIdRef = useRef(0);
   const curbCoinIdRef = useRef(0);
   const chargeIntervalRef = useRef<number | null>(null);
-  useEffect(() => { return () => { if (chargeIntervalRef.current) clearInterval(chargeIntervalRef.current); }; }, []);
+  useEffect(() => { return () => { if (chargeIntervalRef.current) cancelAnimationFrame(chargeIntervalRef.current); }; }, []);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const bullseyeHitsRef = useRef(0);
-  const ballFlightRafRef = useRef<number | null>(null);
-  const gameAreaRef = useRef<HTMLDivElement | null>(null);
+  const gameSceneRef = useRef<HTMLDivElement | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const scoreRef = useRef(0);
   const gameStartedRef = useRef(false);
@@ -122,27 +168,31 @@ export const GameCanvas = ({
   const [swipeAngle, setSwipeAngle] = useState(0);
   const [showBackConfirm, setShowBackConfirm] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const ROAD_TOP_PERCENT = MOBILE_LAYOUT.ROAD_TOP_PERCENT;
-  const ROAD_BOTTOM_PERCENT = MOBILE_LAYOUT.ROAD_BOTTOM_PERCENT;
-  const CURB_Y_PERCENT = MOBILE_LAYOUT.FAR_CURB_PERCENT;
-  const PLAYER_START_Y = PLAYER_START_Y_PERCENT;
-  const TARGET_Y = TARGET_Y_PERCENT;
+  const layoutRef = useRef<GameLayout>(initialLayout);
   const isPausedRef = useRef(false);
   const powerRef = useRef(0);
   const attemptResolvedRef = useRef(true);
   const animationFrameRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const resetTimeoutRef = useRef<number | null>(null);
+  const throwStartTimeRef = useRef<number | null>(null);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
   useEffect(() => { powerRef.current = power; }, [power]);
   const lastFrameRef = useRef(0);
+  const onAchievementProgressRef = useRef(onAchievementProgress);
+  const onChallengeProgressRef = useRef(onChallengeProgress);
+  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+  useEffect(() => { powerRef.current = power; }, [power]);
+  useEffect(() => { onAchievementProgressRef.current = onAchievementProgress; }, [onAchievementProgress]);
+  useEffect(() => { onChallengeProgressRef.current = onChallengeProgress; }, [onChallengeProgress]);
   const obstaclesRef = useRef<Obstacle[]>([]);
   const curbCoinsRef = useRef<CurbCoin[]>([]);
-  const bullseyeRef = useRef<BullseyeTarget>({ position: MOBILE_LAYOUT.TARGET_START_X, direction: 1 });
+  const bullseyeRef = useRef<BullseyeTarget>({ x: initialLayout.targetX, y: initialLayout.targetY, direction: 1 });
   const playStateRef = useRef<PlayState>("IDLE");
+  const isBallFlyingRef = useRef(false);
   const ballPhysicsRef = useRef({
-    x: MOBILE_LAYOUT.PLAYER_START_X,
-    y: PLAYER_START_Y_PERCENT,
+    x: initialLayout.playerStartX,
+    y: initialLayout.playerStartY,
     vx: 0,
     vy: 0,
     spin: 0,
@@ -154,6 +204,9 @@ export const GameCanvas = ({
     obstaclesRef.current = obstacles;
   }, [obstacles]);
   useEffect(() => {
+    layoutRef.current = layoutState;
+  }, [layoutState]);
+  useEffect(() => {
     curbCoinsRef.current = curbCoins;
   }, [curbCoins]);
 
@@ -164,6 +217,7 @@ export const GameCanvas = ({
   useEffect(() => {
     playStateRef.current = playState;
   }, [playState]);
+  useEffect(() => { isBallFlyingRef.current = isBallFlying; }, [isBallFlying]);
 
   const TIME_LIMIT = 180; // 3 minutes in seconds
 
@@ -229,18 +283,67 @@ export const GameCanvas = ({
 
   useEffect(() => {
     const handleResize = () => {
+      const nextWidth = window.innerWidth;
+      const nextHeight = window.innerHeight;
       setViewport({
-        width: window.innerWidth,
-        height: window.innerHeight,
-        scaleX: window.innerWidth / 1280,
-        scaleY: window.innerHeight / 720,
+        width: nextWidth,
+        height: nextHeight,
+        scaleX: nextWidth / 1280,
+        scaleY: nextHeight / 720,
       });
+      const nextLayout = computeGameLayout(nextWidth, nextHeight);
+      setLayoutState(nextLayout);
+      if (!isBallFlying) {
+        ballPhysicsRef.current.x = nextLayout.playerStartX;
+        ballPhysicsRef.current.y = nextLayout.playerStartY;
+        setBallPosition({ x: nextLayout.playerStartX, y: nextLayout.playerStartY });
+        setBullseyeTarget((prev) => ({ ...prev, x: nextLayout.targetX, y: nextLayout.targetY }));
+        setCurbCoins((prev) =>
+          prev.map((coin) => ({
+            ...coin,
+            x: Math.max(coin.radius, Math.min(nextLayout.screenW - coin.radius, coin.x)),
+            y: Math.max(nextLayout.roadTopY + coin.radius, Math.min(nextLayout.roadBottomY - coin.radius, coin.y)),
+          })),
+        );
+      }
+    const scene = gameSceneRef.current;
+    if (!scene) return;
+
+    const measureSceneLayout = () => {
+      const rect = scene.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      const nextLayout = computeGameLayout(rect.width, rect.height);
+      layoutRef.current = nextLayout;
+      setLayoutState(nextLayout);
+
+      if (!isBallFlyingRef.current && playStateRef.current !== "BALL_IN_PLAY") {
+        resetBallToStart(nextLayout);
+        setBullseyeTarget({
+          x: nextLayout.targetX,
+          y: nextLayout.targetY,
+          direction: 1,
+        });
+        clampCoinsToRoad(nextLayout);
+      }
     };
+
+    measureSceneLayout();
+
+    const observer = new ResizeObserver(measureSceneLayout);
+    observer.observe(scene);
+    window.addEventListener("orientationchange", measureSceneLayout);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("orientationchange", measureSceneLayout);
+    };
+  }, []);
 
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [isBallFlying]);
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
@@ -257,6 +360,7 @@ export const GameCanvas = ({
   useEffect(() => {
     if (score >= 100 && !gameWon && gameStarted && !gameEnded) {
       setGameWon(true);
+      soundManager.playMilestone();
     }
   }, [score, gameWon, gameStarted, gameEnded]);
 
@@ -310,6 +414,10 @@ export const GameCanvas = ({
         setIsCharging(false);
         isChargingRef.current = false;
         if (chargeIntervalRef.current) clearInterval(chargeIntervalRef.current);
+        if (chargeIntervalRef.current) {
+          cancelAnimationFrame(chargeIntervalRef.current);
+          chargeIntervalRef.current = null;
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
@@ -318,29 +426,24 @@ export const GameCanvas = ({
 
   // Prevent passive touchmove (allows e.preventDefault() for scroll blocking)
   useEffect(() => {
-    const el = gameAreaRef.current;
+    const el = gameSceneRef.current;
     if (!el) return;
     const block = (e: TouchEvent) => { e.preventDefault(); };
     el.addEventListener('touchmove', block, { passive: false });
     return () => el.removeEventListener('touchmove', block);
   }, []);
 
-  // Cleanup rAF on unmount
-  useEffect(() => {
-    return () => {
-      if (ballFlightRafRef.current) cancelAnimationFrame(ballFlightRafRef.current);
-    };
-  }, []);
-
   // Handle keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
       if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
+      if (!gameStarted || isPausedRef.current || isThrowing || isBallFlying || ballPhase !== 'ready') return;
 
       if (e.key === 'ArrowLeft') {
-        setBallHorizontalPosition(prev => Math.max(10, prev - 5));
+        moveLeft();
       } else if (e.key === 'ArrowRight') {
-        setBallHorizontalPosition(prev => Math.min(90, prev + 5));
+        moveRight();
       }
       if (e.code === 'Space' && !e.repeat) {
         e.preventDefault();
@@ -348,6 +451,8 @@ export const GameCanvas = ({
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
+      if (!gameStarted || isPausedRef.current) return;
       if (e.code === 'Space') {
         e.preventDefault();
         releaseThrow();
@@ -360,19 +465,49 @@ export const GameCanvas = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isThrowing, isBallFlying, ballPhase, isCharging, gameStarted]);
+  }, [isThrowing, isBallFlying, ballPhase, gameStarted]);
 
   const moveLeft = () => {
+    if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
-    setBallHorizontalPosition(prev => Math.max(10, prev - 10));
+    const layout = layoutRef.current;
+    const minX = layout.ballRadius;
+    const nextX = Math.max(minX, ballPhysicsRef.current.x - layout.screenW * 0.08);
+    ballPhysicsRef.current.x = nextX;
+    setBallPosition((p) => ({ ...p, x: nextX }));
     soundManager.playClick();
   };
 
   const moveRight = () => {
+    if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
-    setBallHorizontalPosition(prev => Math.min(90, prev + 10));
+    const layout = layoutRef.current;
+    const maxX = layout.screenW - layout.ballRadius;
+    const nextX = Math.min(maxX, ballPhysicsRef.current.x + layout.screenW * 0.08);
+    ballPhysicsRef.current.x = nextX;
+    setBallPosition((p) => ({ ...p, x: nextX }));
     soundManager.playClick();
   };
+  const moveBallHorizontally = (direction: -1 | 1) => {
+    if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
+    const layout = layoutRef.current;
+    const ball = ballPhysicsRef.current;
+    const step = layout.screenW * 0.08;
+    const nextX = Math.max(
+      layout.ballRadius,
+      Math.min(layout.screenW - layout.ballRadius, ball.x + direction * step)
+    );
+
+    ball.x = nextX;
+    ball.y = layout.playerStartY;
+    ball.vx = 0;
+    ball.vy = 0;
+    setBallPosition({ x: ball.x, y: ball.y });
+    soundManager.playClick();
+  };
+
+  const moveLeft = () => moveBallHorizontally(-1);
+  const moveRight = () => moveBallHorizontally(1);
 
   const calculateCoinsEarned = (throwPower: number, isSuccess: boolean) => {
     if (!isSuccess) return 0;
@@ -399,19 +534,35 @@ export const GameCanvas = ({
   };
 
   const resetBallToStart = () => {
+    const layout = layoutRef.current;
+  const clampCoinsToRoad = (layout: GameLayout) => {
+    setCurbCoins((prev) =>
+      prev.map((coin) => {
+        const radius = Math.max(10, layout.screenW * 0.025);
+        return {
+          ...coin,
+          radius,
+          x: Math.max(radius, Math.min(layout.screenW - radius, coin.x)),
+          y: Math.max(layout.roadTopY + radius, Math.min(layout.roadBottomY - radius, coin.y)),
+        };
+      }),
+    );
+  };
+
+  const resetBallToStart = (layout = layoutRef.current) => {
     ballPhysicsRef.current = {
-      x: MOBILE_LAYOUT.PLAYER_START_X,
-      y: PLAYER_START_Y,
+      x: layout.playerStartX,
+      y: layout.playerStartY,
       vx: 0,
       vy: 0,
       spin: 0,
       hasBounced: false,
       hitType: "none",
     };
-    setBallPosition({ x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y });
-    setBallHorizontalPosition(MOBILE_LAYOUT.PLAYER_START_X);
+    setBallPosition({ x: layout.playerStartX, y: layout.playerStartY });
     setIsBallFlying(false);
     setIsThrowing(false);
+    throwStartTimeRef.current = null;
     setPower(0);
     powerRef.current = 0;
     setBallPhase("ready");
@@ -458,6 +609,8 @@ export const GameCanvas = ({
         soundManager.playFail();
       }
     }
+    setIsBallFlying(false);
+    setIsThrowing(false);
     scheduleResetToReady(delayMs);
   };
 
@@ -496,13 +649,20 @@ export const GameCanvas = ({
         if (prev.filter(c => !c.collected).length >= 3) return prev;
         
         if (Math.random() > 0.6) {
+          const layout = layoutRef.current;
           const coinValues = [5, 10, 15]; // Different coin values
           const value = coinValues[Math.floor(Math.random() * coinValues.length)];
           const lifetime = 5000 + Math.random() * 5000; // 5-10 seconds
+          const radius = Math.max(10, layout.screenW * 0.025);
+          const x = Math.max(radius, Math.min(layout.screenW - radius, layout.screenW * (0.2 + Math.random() * 0.6)));
+          const yRaw = layout.coinMinY + Math.random() * (layout.coinMaxY - layout.coinMinY);
+          const y = Math.max(layout.roadTopY + radius, Math.min(layout.roadBottomY - radius, yRaw));
           
           const newCoin: CurbCoin = {
             id: curbCoinIdRef.current++,
-            position: 15 + Math.random() * 70, // Random position between 15-85%
+            x,
+            y,
+            radius,
             value: value,
             collected: false,
             expiresAt: Date.now() + lifetime,
@@ -534,25 +694,22 @@ export const GameCanvas = ({
     const friction = 0.992;
     const farCurbBounce = 0.85;
     const edgeBounce = 0.8;
-    const ballRadiusPx = viewport.width * 0.035;
-    const targetRadiusPx = viewport.width * 0.055;
-    const ballRadiusYPercent = (ballRadiusPx / viewport.height) * 100;
+    const layout = layoutRef.current;
+    const ballRadiusPx = layout.ballRadius;
+    const targetRadiusPx = layout.targetRadius;
     let cancelled = false;
 
     const checkCoinCollisions = (ball: { x: number; y: number }) => {
+    let cancelled = false;
+
+    const checkCoinCollisions = (ball: { x: number; y: number }) => {
+      const liveLayout = layoutRef.current;
+      const ballRadiusPx = liveLayout.ballRadius;
       let bonus = 0;
-      const ballPx = {
-        x: (ball.x / 100) * viewport.width,
-        y: (ball.y / 100) * viewport.height,
-      };
       const nextCoins = curbCoinsRef.current.map((coin) => {
         if (coin.collected) return coin;
-        const coinPx = {
-          x: (coin.position / 100) * viewport.width,
-          y: (TARGET_Y / 100) * viewport.height,
-        };
-        const dist = Math.hypot(ballPx.x - coinPx.x, ballPx.y - coinPx.y);
-        if (dist > ballRadiusPx + targetRadiusPx * 0.45) return coin;
+        const dist = Math.hypot(ball.x - coin.x, ball.y - coin.y);
+        if (dist > ballRadiusPx + coin.radius) return coin;
         bonus += coin.value;
         soundManager.playCoinCollect();
         return { ...coin, collected: true };
@@ -567,8 +724,6 @@ export const GameCanvas = ({
         }, 450);
       }
     };
-    let resetTimeout: number | null = null;
-    let rafId: number | null = null;
 
     const loop = (timestamp: number) => {
       if (cancelled) return;
@@ -577,6 +732,9 @@ export const GameCanvas = ({
       const delta = Math.min((timestamp - last) / 1000, 0.033);
       lastFrameTimeRef.current = timestamp;
       lastFrameRef.current = timestamp;
+      const last = lastFrameTimeRef.current ?? timestamp;
+      const delta = Math.min((timestamp - last) / 1000, 0.033);
+      lastFrameTimeRef.current = timestamp;
 
       setObstacles((prev) =>
         prev
@@ -585,20 +743,22 @@ export const GameCanvas = ({
       );
 
       setBullseyeTarget((prev) => {
-        let newPosition = prev.position + prev.direction * currentDifficultySettings.bullseyeSpeed * delta * 20;
+        const liveLayout = layoutRef.current;
+        let newX = prev.x + prev.direction * currentDifficultySettings.bullseyeSpeed * delta * (liveLayout.screenW * 0.14);
         let newDirection = prev.direction;
-        if (newPosition >= 42) {
-          newPosition = 42;
+        const maxX = liveLayout.screenW * 0.42;
+        const minX = liveLayout.screenW * 0.18;
+        if (newX >= maxX) {
+          newX = maxX;
           newDirection = -1;
-        } else if (newPosition <= 18) {
-          newPosition = 18;
+        } else if (newX <= minX) {
+          newX = minX;
           newDirection = 1;
         }
-        return { position: newPosition, direction: newDirection };
+        return { x: newX, y: liveLayout.targetY, direction: newDirection };
       });
 
       if (playStateRef.current === "BALL_IN_PLAY" && !attemptResolvedRef.current) {
-      if (playStateRef.current === "BALL_IN_PLAY") {
         const b = ballPhysicsRef.current;
         b.x += b.vx * delta;
         b.y += b.vy * delta;
@@ -606,13 +766,19 @@ export const GameCanvas = ({
         b.vx *= frictionStep;
         b.vy *= frictionStep;
 
-        if (b.x <= 0 || b.x >= 100) {
-          b.x = Math.max(0, Math.min(100, b.x));
+        const liveLayout = layoutRef.current;
+        const ballRadiusPx = liveLayout.ballRadius;
+        const targetRadiusPx = liveLayout.targetRadius;
+        if (b.x <= ballRadiusPx || b.x >= liveLayout.screenW - ballRadiusPx) {
+          b.x = Math.max(ballRadiusPx, Math.min(liveLayout.screenW - ballRadiusPx, b.x));
           b.vx *= -edgeBounce;
         }
 
         const obstacleHit = obstaclesRef.current.some(
-          (obs) => Math.abs((obs.position + 6) - b.x) < 7 && b.y >= ROAD_TOP_PERCENT + 2 && b.y <= ROAD_BOTTOM_PERCENT + 2
+          (obs) => {
+            const obstacleX = (obs.position / 100) * liveLayout.screenW;
+            return Math.abs(obstacleX - b.x) < ballRadiusPx + 34 && b.y >= liveLayout.roadTopY && b.y <= liveLayout.roadBottomY;
+          }
         );
 
         if (obstacleHit) {
@@ -620,9 +786,8 @@ export const GameCanvas = ({
           b.hasBounced = false;
           b.vx = 0;
           b.vy = 0;
-          b.y = PLAYER_START_Y;
+          b.y = liveLayout.playerStartY;
           setBallPosition({ x: b.x, y: b.y });
-          setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
           resolveAttempt({ hitType: "obstacle", attemptsDelta: -1, success: false, delayMs: 650 });
           animationFrameRef.current = requestAnimationFrame(loop);
           return;
@@ -630,120 +795,39 @@ export const GameCanvas = ({
 
         checkCoinCollisions(b);
 
-        const outOfBounds = b.y < ROAD_TOP_PERCENT - 10 || b.y > ROAD_BOTTOM_PERCENT + 20 || b.x < -5 || b.x > 105;
+        const outOfBounds =
+          b.x < -ballRadiusPx ||
+          b.x > liveLayout.screenW + ballRadiusPx ||
+          b.y < liveLayout.farCurbY - ballRadiusPx * 3 ||
+          b.y > liveLayout.roadBottomY + ballRadiusPx;
         if (outOfBounds) {
           resolveAttempt({ hitType: "miss", attemptsDelta: -1, success: false, delayMs: 650 });
           setBallPosition({ x: b.x, y: b.y });
-          setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
           animationFrameRef.current = requestAnimationFrame(loop);
           return;
         }
 
-        const dxPx = ((b.x - bullseyeRef.current.position) * viewport.width) / 100;
-        const dyPx = ((b.y - TARGET_Y) * viewport.height) / 100;
-        const distToTarget = Math.hypot(dxPx, dyPx);
-
-
-        if (b.x <= 0 || b.x >= 100) {
-          b.x = Math.max(0, Math.min(100, b.x));
-          b.vx *= -edgeBounce;
-        }
-
-        const obstacleHit = obstaclesRef.current.some(
-          (obs) => Math.abs((obs.position + 6) - b.x) < 7 && b.y >= ROAD_TOP_PERCENT + 2 && b.y <= ROAD_BOTTOM_PERCENT + 2
-        );
-
-        if (obstacleHit) {
-          b.hitType = "none";
-          b.hasBounced = false;
-          b.vx = 0;
-          b.vy = 0;
-          b.y = PLAYER_START_Y;
-          setBallPosition({ x: b.x, y: b.y });
-          setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
-          resolveAttempt({ hitType: "obstacle", attemptsDelta: -1, success: false, delayMs: 650 });
-          animationFrameRef.current = requestAnimationFrame(loop);
-          return;
-        }
-
-        checkCoinCollisions(b);
-
-        const outOfBounds = b.y < ROAD_TOP_PERCENT - 10 || b.y > ROAD_BOTTOM_PERCENT + 20 || b.x < -5 || b.x > 105;
-        if (outOfBounds) {
-          resolveAttempt({ hitType: "miss", attemptsDelta: -1, success: false, delayMs: 650 });
-          setBallPosition({ x: b.x, y: b.y });
-          setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
-          animationFrameRef.current = requestAnimationFrame(loop);
-          return;
-        }
-
-        const dxPx = ((b.x - bullseyeRef.current.position) * viewport.width) / 100;
-        const dyPx = ((b.y - TARGET_Y) * viewport.height) / 100;
+        const dxPx = b.x - bullseyeRef.current.x;
+        const dyPx = b.y - bullseyeRef.current.y;
         const distToTarget = Math.hypot(dxPx, dyPx);
 
         if (distToTarget <= ballRadiusPx + targetRadiusPx && b.hitType !== "target" && !attemptResolvedRef.current) {
           const norm = distToTarget === 0 ? { x: 1, y: 0 } : { x: dxPx / distToTarget, y: dyPx / distToTarget };
           const velPx = {
-            x: (b.vx * viewport.width) / 100,
-            y: (b.vy * viewport.height) / 100,
+            x: b.vx,
+            y: b.vy,
           };
           const dot = velPx.x * norm.x + velPx.y * norm.y;
           const reflectX = velPx.x - 2 * dot * norm.x;
           const reflectY = velPx.y - 2 * dot * norm.y;
-          b.vx = (reflectX / viewport.width) * 100;
-          b.vy = (reflectY / viewport.height) * 100;
-          b.hasBounced = true;
-          b.hitType = "target";
-          setBallPhase("hit");
-          soundManager.playImpact();
-
-          const pointsEarned = Math.abs(bullseyeRef.current.position - b.x) < 6 ? 60 : 10;
-          const coinsGained = calculateCoinsEarned(powerRef.current, true);
-          setScore((prev) => {
-            const newScore = prev + pointsEarned;
-            onAchievementProgress?.("first_1000", newScore);
-            onChallengeProgress?.("score_500", newScore);
-            return newScore;
-          });
-          setConsecutiveHits((prev) => {
-            const newStreak = prev + 1;
-            onAchievementProgress?.("streak_10", newStreak);
-            onChallengeProgress?.("perfect_streak", newStreak);
-            return newStreak;
-          });
-          setCoins((prev) => prev + coinsGained);
-          setCoinsEarned((prev) => prev + coinsGained);
-          bullseyeHitsRef.current += 1;
-          onChallengeProgress?.("bullseye_5", bullseyeHitsRef.current);
-          setShowConfetti(true);
-        }
-
-        if (b.y <= ROAD_TOP_PERCENT + ballRadiusYPercent) {
-          b.y = ROAD_TOP_PERCENT + ballRadiusYPercent;
-          b.vy = Math.abs(b.vy) * farCurbBounce;
-          b.vx *= 0.95;
-          b.hasBounced = true;
-          if (b.hitType === "none") b.hitType = "curb";
-          setBallPhase("bouncing");
-          soundManager.playImpact();
-        }
-
-        }
-
-        if (b.y <= ROAD_TOP_PERCENT + ballRadiusYPercent) {
-          b.y = ROAD_TOP_PERCENT + ballRadiusYPercent;
-          b.vy = Math.abs(b.vy) * farCurbBounce;
-          b.vx *= 0.95;
-          b.hasBounced = true;
-          if (b.hitType === "none") b.hitType = "curb";
-          setBallPhase("bouncing");
-          soundManager.playImpact();
-        }
-
-        }
+          b.vx = reflectX;
+          b.vy = reflectY;
 
         const obstacleHit = obstaclesRef.current.some(
-          (obs) => Math.abs((obs.position + 6) - b.x) < 7 && b.y >= ROAD_TOP_PERCENT + 2 && b.y <= ROAD_BOTTOM_PERCENT + 2
+          (obs) => {
+            const obstacleX = (obs.position / 100) * liveLayout.screenW;
+            return Math.abs(obstacleX - b.x) < ballRadiusPx + 34 && b.y >= liveLayout.roadTopY && b.y <= liveLayout.roadBottomY;
+          }
         );
 
         if (obstacleHit) {
@@ -751,77 +835,74 @@ export const GameCanvas = ({
           b.hasBounced = false;
           b.vx = 0;
           b.vy = 0;
-          b.y = PLAYER_START_Y;
-          setPlayState("MISSED");
-          playStateRef.current = "MISSED";
-          setBallPhase("missed");
-          setConsecutiveHits(0);
-          onChallengeProgress?.("perfect_streak", 0);
-          setAttempts((prev) => Math.max(prev - 1, 0));
-          soundManager.playFail();
+          b.y = liveLayout.playerStartY;
           setBallPosition({ x: b.x, y: b.y });
-          setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
-          rafId = requestAnimationFrame(loop);
+          resolveAttempt({ hitType: "obstacle", attemptsDelta: -1, success: false, delayMs: 650 });
+          animationFrameRef.current = requestAnimationFrame(loop);
           return;
         }
 
-        const dxPx = ((b.x - bullseyeRef.current.position) * viewport.width) / 100;
-        const dyPx = ((b.y - TARGET_Y) * viewport.height) / 100;
+        checkCoinCollisions(b);
+
+        const outOfBounds =
+          b.x < -ballRadiusPx ||
+          b.x > liveLayout.screenW + ballRadiusPx ||
+          b.y < liveLayout.farCurbY - ballRadiusPx * 3 ||
+          b.y > liveLayout.roadBottomY + ballRadiusPx;
+        if (outOfBounds) {
+          if (b.hitType !== "target") {
+            resolveAttempt({ hitType: "miss", attemptsDelta: -1, success: false, delayMs: 650 });
+          }
+          setBallPosition({ x: b.x, y: b.y });
+          animationFrameRef.current = requestAnimationFrame(loop);
+          return;
+        }
+
+        const dxPx = b.x - bullseyeRef.current.x;
+        const dyPx = b.y - bullseyeRef.current.y;
         const distToTarget = Math.hypot(dxPx, dyPx);
 
-        if (distToTarget <= ballRadiusPx + targetRadiusPx && b.hitType !== "target") {
+        if (distToTarget <= ballRadiusPx + targetRadiusPx && b.hitType !== "target" && !attemptResolvedRef.current) {
           const norm = distToTarget === 0 ? { x: 1, y: 0 } : { x: dxPx / distToTarget, y: dyPx / distToTarget };
-          const velPx = {
-            x: (b.vx * viewport.width) / 100,
-            y: (b.vy * viewport.height) / 100,
-          };
-          const dot = velPx.x * norm.x + velPx.y * norm.y;
-          const reflectX = velPx.x - 2 * dot * norm.x;
-          const reflectY = velPx.y - 2 * dot * norm.y;
-          b.vx = (reflectX / viewport.width) * 100;
-          b.vy = (reflectY / viewport.height) * 100;
+          const dot = b.vx * norm.x + b.vy * norm.y;
+          b.vx = b.vx - 2 * dot * norm.x;
+          b.vy = b.vy - 2 * dot * norm.y;
           b.hasBounced = true;
           b.hitType = "target";
           setBallPhase("hit");
           soundManager.playImpact();
 
-          const pointsEarned = Math.abs(bullseyeRef.current.position - b.x) < 6 ? 60 : 10;
-          let coinBonus = 0;
-          const collectedCoin = curbCoinsRef.current.find(
-            (coin) => !coin.collected && Math.abs(coin.position - b.x) < 8
-          );
-          if (collectedCoin) {
-            coinBonus = collectedCoin.value;
-            soundManager.playCoinCollect();
-            setCurbCoins((prev) =>
-              prev.map((coin) => (coin.id === collectedCoin.id ? { ...coin, collected: true } : coin))
-            );
-            window.setTimeout(() => {
-              setCurbCoins((prev) => prev.filter((coin) => coin.id !== collectedCoin.id));
-            }, 450);
-          }
-          const coinsGained = calculateCoinsEarned(powerRef.current, true) + coinBonus;
+          const bullseyeHit = distToTarget <= targetRadiusPx * 0.45;
+          const pointsEarned = bullseyeHit ? 60 : 10;
+          const coinsGained = calculateCoinsEarned(powerRef.current, true);
           setScore((prev) => {
             const newScore = prev + pointsEarned;
             onAchievementProgress?.("first_1000", newScore);
             onChallengeProgress?.("score_500", newScore);
+            onAchievementProgressRef.current?.("first_1000", newScore);
+            onChallengeProgressRef.current?.("score_500", newScore);
             return newScore;
           });
           setConsecutiveHits((prev) => {
             const newStreak = prev + 1;
             onAchievementProgress?.("streak_10", newStreak);
             onChallengeProgress?.("perfect_streak", newStreak);
+            onAchievementProgressRef.current?.("streak_10", newStreak);
+            onChallengeProgressRef.current?.("perfect_streak", newStreak);
             return newStreak;
           });
           setCoins((prev) => prev + coinsGained);
           setCoinsEarned((prev) => prev + coinsGained);
-          bullseyeHitsRef.current += 1;
-          onChallengeProgress?.("bullseye_5", bullseyeHitsRef.current);
+          if (bullseyeHit) {
+            bullseyeHitsRef.current += 1;
+            onChallengeProgress?.("bullseye_5", bullseyeHitsRef.current);
+            onChallengeProgressRef.current?.("bullseye_5", bullseyeHitsRef.current);
+          }
           setShowConfetti(true);
         }
 
-        if (b.y <= ROAD_TOP_PERCENT + ballRadiusYPercent) {
-          b.y = ROAD_TOP_PERCENT + ballRadiusYPercent;
+        if (b.y <= liveLayout.roadTopY + ballRadiusPx) {
+          b.y = liveLayout.roadTopY + ballRadiusPx;
           b.vy = Math.abs(b.vy) * farCurbBounce;
           b.vx *= 0.95;
           b.hasBounced = true;
@@ -830,34 +911,59 @@ export const GameCanvas = ({
           soundManager.playImpact();
         }
 
-        if (b.y >= PLAYER_START_Y && b.hasBounced) {
-          b.y = PLAYER_START_Y;
+        if (b.y >= liveLayout.playerStartY && b.hasBounced) {
+          b.y = liveLayout.playerStartY;
           b.vx *= 0.8;
           b.vy *= -0.2;
         }
 
-        const speedPx = Math.hypot((b.vx * viewport.width) / 100, (b.vy * viewport.height) / 100);
-        if (speedPx < 8 && b.hasBounced) {
+        const speedPx = Math.hypot(b.vx, b.vy);
+        const ballHasSettled = speedPx < 12;
+        const throwElapsed = throwStartTimeRef.current ? timestamp - throwStartTimeRef.current : 0;
+        const throwTimedOut = throwElapsed > 4200;
+        if (ballHasSettled || throwTimedOut) {
           if (b.hitType === "target") {
             resolveAttempt({ hitType: "target", success: true, delayMs: 750 });
           } else {
             resolveAttempt({ hitType: b.hitType === "curb" ? "curb" : "miss", attemptsDelta: -1, success: false, delayMs: 700 });
-          setPlayState(b.hitType === "target" ? "SCORED" : "MISSED");
-          playStateRef.current = b.hitType === "target" ? "SCORED" : "MISSED";
-          if (b.hitType !== "target") {
-            setBallPhase("missed");
-            setConsecutiveHits(0);
-            onChallengeProgress?.("perfect_streak", 0);
-            setAttempts((prev) => Math.max(prev - 1, 0));
-            soundManager.playFail();
-          } else {
-            setBallPhase("bouncing");
-            soundManager.playSuccess();
           }
         }
 
         setBallPosition({ x: b.x, y: b.y });
-        setBallHorizontalPosition(Math.min(90, Math.max(10, b.x)));
+
+        if (DEBUG_GAME_CANVAS) {
+          console.debug("[GameCanvas]", {
+            playState: playStateRef.current,
+            ball: { x: b.x, y: b.y, vx: b.vx, vy: b.vy },
+            layout: {
+              roadTopY: liveLayout.roadTopY,
+              roadBottomY: liveLayout.roadBottomY,
+              targetX: liveLayout.targetX,
+              targetY: liveLayout.targetY,
+            },
+          });
+        }
+        }
+
+        if (b.y >= liveLayout.playerStartY && b.hasBounced) {
+          b.y = liveLayout.playerStartY;
+          b.vx *= 0.8;
+          b.vy *= -0.2;
+        }
+
+        const speedPx = Math.hypot(b.vx, b.vy);
+        const ballHasSettled = speedPx < 12;
+        const throwElapsed = throwStartTimeRef.current ? timestamp - throwStartTimeRef.current : 0;
+        const throwTimedOut = throwElapsed > 4200;
+        if (ballHasSettled || throwTimedOut) {
+          if (b.hitType === "target") {
+            resolveAttempt({ hitType: "target", success: true, delayMs: 750 });
+          } else {
+            resolveAttempt({ hitType: b.hitType === "curb" ? "curb" : "miss", attemptsDelta: -1, success: false, delayMs: 700 });
+          }
+        }
+
+        setBallPosition({ x: b.x, y: b.y });
       }
 
       animationFrameRef.current = requestAnimationFrame(loop);
@@ -875,48 +981,14 @@ export const GameCanvas = ({
         resetTimeoutRef.current = null;
       }
       lastFrameTimeRef.current = null;
-    };
-
-    animationFrameRef.current = requestAnimationFrame(loop);
-    return () => {
-      cancelled = true;
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-      if (resetTimeoutRef.current) {
-        clearTimeout(resetTimeoutRef.current);
-        resetTimeoutRef.current = null;
-      }
-      lastFrameTimeRef.current = null;
-      if ((playStateRef.current === "SCORED" || playStateRef.current === "MISSED") && !resetTimeout) {
-        setPlayState("RESET");
-        resetTimeout = window.setTimeout(() => {
-          ballPhysicsRef.current = { x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y, vx: 0, vy: 0, spin: 0, hasBounced: false, hitType: "none" };
-          setBallPosition({ x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y });
-          setBallHorizontalPosition(MOBILE_LAYOUT.PLAYER_START_X);
-          setIsBallFlying(false);
-          setIsThrowing(false);
-          setPower(0);
-          setBallPhase("ready");
-          setPlayState("IDLE");
-          playStateRef.current = "IDLE";
-          setShowConfetti(false);
-        }, 950);
-      }
-
-      rafId = requestAnimationFrame(loop);
-    };
-
-    rafId = requestAnimationFrame(loop);
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      if (resetTimeout) clearTimeout(resetTimeout);
       lastFrameRef.current = 0;
     };
-  }, [PLAYER_START_Y, ROAD_BOTTOM_PERCENT, ROAD_TOP_PERCENT, TARGET_Y, currentDifficultySettings.bullseyeSpeed, gameEnded, gameStarted, isPaused, onAchievementProgress, onChallengeProgress, viewport.height, viewport.width]);
+  }, [currentDifficultySettings.bullseyeSpeed, gameEnded, gameStarted, isPaused, onAchievementProgress, onChallengeProgress, viewport.height, viewport.width]);
+    };
+  }, [currentDifficultySettings.bullseyeSpeed, gameEnded, gameStarted, isPaused]);
 
   const startCharging = () => {
+    if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
     if (isThrowing || isBallFlying) return;
     
     setIsCharging(true);
@@ -954,7 +1026,8 @@ export const GameCanvas = ({
   };
 
   const releaseThrow = () => {
-    if (!isCharging || !gameStarted) return;
+    if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
+    if (!isCharging) return;
     
     setIsCharging(false);
     isChargingRef.current = false;
@@ -968,14 +1041,25 @@ export const GameCanvas = ({
 
   // Pointer handlers for unified desktop/mobile input
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const localX = e.clientX - rect.left;
     const localY = e.clientY - rect.top;
+    const layout = layoutRef.current;
+    const nextX = Math.max(layout.ballRadius, Math.min(layout.screenW - layout.ballRadius, localX));
 
-    setPlayState("AIMING");
-    setBallHorizontalPosition(Math.min(90, Math.max(10, (localX / rect.width) * 100)));
+    setPlayStateSafe("AIMING");
+    const xPx = Math.min(
+      layoutRef.current.screenW - layoutRef.current.ballRadius,
+      Math.max(layoutRef.current.ballRadius, localX),
+    );
+    ballPhysicsRef.current.x = xPx;
+    setBallPosition((p) => ({ ...p, x: xPx }));
+    ballPhysicsRef.current.x = nextX;
+    ballPhysicsRef.current.y = layout.playerStartY;
+    setBallPosition({ x: nextX, y: layout.playerStartY });
     touchStartRef.current = {
       x: localX,
       y: localY,
@@ -984,12 +1068,23 @@ export const GameCanvas = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
     if (isThrowing || isBallFlying || ballPhase !== 'ready') return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const localX = e.clientX - rect.left;
+    const layout = layoutRef.current;
+    const nextX = Math.max(layout.ballRadius, Math.min(layout.screenW - layout.ballRadius, localX));
 
-    setBallHorizontalPosition(Math.min(90, Math.max(10, (localX / rect.width) * 100)));
+    const xPx = Math.min(
+      layoutRef.current.screenW - layoutRef.current.ballRadius,
+      Math.max(layoutRef.current.ballRadius, localX),
+    );
+    ballPhysicsRef.current.x = xPx;
+    setBallPosition((p) => ({ ...p, x: xPx }));
+    ballPhysicsRef.current.x = nextX;
+    ballPhysicsRef.current.y = layout.playerStartY;
+    setBallPosition({ x: nextX, y: layout.playerStartY });
 
     if (touchStartRef.current) {
       const localY = e.clientY - rect.top;
@@ -1001,6 +1096,7 @@ export const GameCanvas = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
     if (!touchStartRef.current || isThrowing || isBallFlying || ballPhase !== 'ready' || !gameStarted) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -1021,9 +1117,12 @@ export const GameCanvas = ({
   };
 
   const throwBall = (throwPower: number, angle: number = 0) => {
+    if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
     if (isThrowing || isBallFlying || !gameStarted || isPausedRef.current) return;
-    const targetDx = bullseyeRef.current.position - ballHorizontalPosition;
-    const targetDy = TARGET_Y - PLAYER_START_Y;
+    const layout = layoutRef.current;
+    const startX = ballPhysicsRef.current.x || layout.playerStartX;
+    const targetDx = bullseyeRef.current.x - startX;
+    const targetDy = bullseyeRef.current.y - layout.playerStartY;
     const baseAngle = Math.atan2(targetDy, targetDx);
     const aimAngle = baseAngle + ((angle * Math.PI) / 180) * 0.25;
     const launchSpeedPx = 460 + Math.min(throwPower, 100) * 5.8;
@@ -1031,32 +1130,39 @@ export const GameCanvas = ({
   };
 
   const throwBallFromGesture = (velocityX: number, velocityY: number) => {
+    if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
     const aimAngle = Math.atan2(velocityY, velocityX);
     const launchSpeedPx = Math.max(420, Math.min(980, Math.hypot(velocityX, velocityY) * 0.16));
     throwBallFromVelocity(aimAngle, launchSpeedPx);
   };
 
   const throwBallFromVelocity = (aimAngle: number, launchSpeedPx: number) => {
+    if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
     if (isThrowing || isBallFlying || !gameStarted) return;
+    const layout = layoutRef.current;
     setIsThrowing(true);
     setIsBallFlying(true);
     setBallPhase("flying");
     beginThrow();
-    setPlayState("BALL_IN_PLAY");
     setShowConfetti(false);
     soundManager.playThrow();
-    const vxPercent = (Math.cos(aimAngle) * launchSpeedPx / viewport.width) * 100;
-    const vyPercent = (Math.sin(aimAngle) * launchSpeedPx / viewport.height) * 100;
+    throwStartTimeRef.current = performance.now();
+    const vxPx = Math.cos(aimAngle) * launchSpeedPx;
+    const vyPx = Math.sin(aimAngle) * launchSpeedPx;
     ballPhysicsRef.current = {
-      x: ballHorizontalPosition,
-      y: PLAYER_START_Y,
-      vx: vxPercent,
-      vy: vyPercent,
-      spin: vxPercent * 0.0015,
+      x: layout.playerStartX,
+    const startX = Math.max(layout.ballRadius, Math.min(layout.screenW - layout.ballRadius, ballPhysicsRef.current.x || layout.playerStartX));
+    ballPhysicsRef.current = {
+      x: startX,
+      y: layout.playerStartY,
+      vx: vxPx,
+      vy: vyPx,
+      spin: vxPx * 0.0015,
       hasBounced: false,
       hitType: "none",
     };
-    setBallPosition({ x: ballHorizontalPosition, y: PLAYER_START_Y });
+    setBallPosition({ x: layout.playerStartX, y: layout.playerStartY });
+    setBallPosition({ x: startX, y: layout.playerStartY });
   };
 
   const restartGame = () => {
@@ -1071,24 +1177,28 @@ export const GameCanvas = ({
       setHighScore(score);
     }
 
-    const newGamesPlayed = gamesPlayed + 1;
-    setGamesPlayed(newGamesPlayed);
+    setGamesPlayed(prev => {
+      const newGamesPlayed = prev + 1;
+      onAchievementProgressRef.current?.('play_50', newGamesPlayed);
+      return newGamesPlayed;
+    });
 
     setScore(0);
     setCoinsEarned(0);
     setConsecutiveHits(0);
     bullseyeHitsRef.current = 0;
-    setBallHorizontalPosition(MOBILE_LAYOUT.PLAYER_START_X);
     setCurbCoins([]);
     setGameEnded(false);
     setGameWon(false);
     setObstacles([]);
-    setBallPosition({ x: MOBILE_LAYOUT.PLAYER_START_X, y: PLAYER_START_Y });
+    setBallPosition({ x: layoutRef.current.playerStartX, y: layoutRef.current.playerStartY });
+    resetBallToStart();
     setGameStarted(false);
     setTimeRemaining(TIME_LIMIT);
     setFinalTime(0);
     setAttempts(5);
     attemptResolvedRef.current = true;
+      setPlayStateSafe("IDLE");
     setPlayStateSafe("IDLE");
     toast.info("Game restarted! Good luck!");
   };
@@ -1105,15 +1215,6 @@ export const GameCanvas = ({
       toast.success(`🏆 New Top ${newRank} Score!`, {
         description: `You made it to the leaderboard!`,
       });
-    }
-    
-    // Track games played
-    const newGamesPlayed = gamesPlayed + 1;
-    setGamesPlayed(newGamesPlayed);
-    
-    // Track achievement for games played
-    if (onAchievementProgress) {
-      onAchievementProgress('play_50', newGamesPlayed);
     }
     
     toast.success("Time's Up!", {
@@ -1158,15 +1259,41 @@ export const GameCanvas = ({
     }
     return `/balls/${ballId}.png`;
   };
+  const visibleCurbCoins = curbCoins.filter(
+    (coin) =>
+      !coin.collected &&
+      coin.y >= layoutState.coinMinY + coin.radius &&
+      coin.y <= layoutState.coinMaxY - coin.radius,
+  );
+  const isStartScreen = !gameStarted && !gameEnded;
+  const isActiveGameplay = gameStarted && !gameEnded;
+  const isPausedView = isActiveGameplay && isPaused;
+  const isPlaying = isActiveGameplay && !isPaused;
+
+  const startGame = () => {
+    setGameStarted(true);
+    gameStartedRef.current = true;
+    setGameEnded(false);
+    gameEndedRef.current = false;
+    setIsPaused(false);
+    isPausedRef.current = false;
+    setScore(0);
+    setTimeRemaining(TIME_LIMIT);
+    setAttempts(5);
+    resetBallToStart();
+    setPlayStateSafe("IDLE");
+  };
+      coin.y >= layoutState.roadTopY + coin.radius &&
+      coin.y <= layoutState.roadBottomY - coin.radius,
+  );
 
   return (
     <div 
       className="fixed inset-0 m-0 block w-screen overflow-hidden bg-center bg-no-repeat"
       style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: "cover", backgroundPosition: "center 18%", height: "100dvh" }}
-      style={{ backgroundImage: `url(${getBackdropUrl()})`, backgroundSize: "cover", backgroundPosition: "center top", height: "100dvh" }}
     >
       {/* Starting Screen */}
-      {!gameStarted && (
+      {isStartScreen && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm">
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-md mx-4 border border-white/20 shadow-2xl">
             <h1 className="text-4xl font-bold text-white mb-6 text-center">Curb Ball Challenge</h1>
@@ -1214,9 +1341,10 @@ export const GameCanvas = ({
             </div>
             
             <button
+              onClick={startGame}
               onClick={() => {
                 setGameStarted(true);
-                setPlayState("IDLE");
+                setPlayStateSafe("IDLE");
               }}
               className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all transform hover:scale-105 shadow-lg"
             >
@@ -1248,38 +1376,159 @@ export const GameCanvas = ({
       )}
 
       {/* Game area */}
-      <div
-        ref={gameAreaRef}
+        <div
+          ref={gameAreaRef}
         role="main"
         aria-label="Curb Ball game — aim with the left and right buttons, hold Charge to throw"
         className="relative h-full w-full touch-none select-none"
+      {/* Game scene: the single measured coordinate parent for gameplay. */}
+      <div
+        ref={gameSceneRef}
+        role="main"
+        aria-label="Curb Ball game - aim with the left and right buttons, hold Charge to throw"
+        className="relative w-full h-[100dvh] overflow-hidden touch-none select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
+        {isActiveGameplay && (
+          <>
         {/* HUD - Mobile Responsive */}
-        <div className="absolute left-2 right-2 z-20 flex flex-wrap justify-between items-start gap-1.5" style={{ top: "max(0.4rem, env(safe-area-inset-top))", maxHeight: `${MOBILE_LAYOUT.HUD_BOTTOM_PERCENT}dvh` }}>
-        <div className="absolute left-2 right-2 z-20 flex flex-wrap justify-between items-start gap-1.5" style={{ top: "max(0.4rem, env(safe-area-inset-top))", maxHeight: "18dvh" }}>
+        <div
+          className="absolute left-2 right-2 z-20 flex flex-wrap justify-between items-start gap-1.5"
+          style={{ top: "max(0.4rem, env(safe-area-inset-top))", maxHeight: `${layoutState.hudBottomY}px` }}
+        <div
+          className="absolute inset-0 z-0 bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url(${getBackdropUrl()})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center 18%",
+          }}
+        />
+
+        <div
+          className={`absolute left-0 right-0 z-10 border-t-4 border-slate-400 border-b-4 border-yellow-400 transition-all duration-700 ${
+            gameWon ? "bg-gradient-to-b from-purple-800 to-purple-950" : "bg-neutral-900"
+          }`}
+          style={{
+            top: layoutState.roadTopY,
+            height: layoutState.roadBottomY - layoutState.roadTopY,
+            background: gameWon ? undefined : "hsl(var(--game-street))",
+          }}
+        >
+          <div className={`absolute top-0 left-0 right-0 h-4 ${gameWon ? "bg-gradient-to-b from-yellow-400 to-yellow-600" : "bg-gradient-to-b from-gray-400 to-gray-600"}`} />
+          <div className={`absolute left-0 right-0 h-1 opacity-80 ${gameWon ? "bg-purple-400" : "bg-yellow-400"}`} style={{ top: (layoutState.roadBottomY - layoutState.roadTopY) * 0.42 }} />
+        </div>
+
+        <div className="absolute left-0 right-0 z-20 h-1 bg-gray-300/90 shadow-md pointer-events-none" style={{ top: layoutState.farCurbY }} />
+
+        <div className="absolute inset-0 z-30 pointer-events-none">
+          {obstacles.map((obs) => (
+            <div
+              key={obs.id}
+              className="absolute transition-all"
+              style={{
+                left: (obs.position / 100) * layoutState.screenW,
+                top: layoutState.roadTopY + (layoutState.roadBottomY - layoutState.roadTopY) * 0.55,
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              <div className={`${obs.type === "car" ? "w-16 h-10 bg-gradient-to-r from-red-600 to-red-800" : "w-10 h-7 bg-gradient-to-r from-blue-600 to-blue-800"} rounded-lg shadow-lg`} />
+            </div>
+          ))}
+
+          {visibleCurbCoins.map((coin) => (
+            <div
+              key={coin.id}
+              className={`absolute z-[35] transition-all duration-300 ${coin.collected ? "opacity-0 scale-150" : "opacity-100 scale-100"}`}
+              style={{
+                left: coin.x,
+                top: coin.y,
+                width: coin.radius * 2,
+                height: coin.radius * 2,
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              <div className="relative h-full w-full animate-bounce">
+                <div className="absolute inset-0 bg-yellow-400 rounded-full blur-md opacity-40" />
+                <div className="relative h-full w-full bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full border-2 border-yellow-700 shadow-lg flex items-center justify-center text-yellow-950 text-xs font-bold">
+                  {coin.value}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <div
+            className="absolute z-30 transition-all duration-75"
+            style={{
+              left: bullseyeTarget.x,
+              top: bullseyeTarget.y,
+              width: layoutState.targetRadius * 2,
+              height: layoutState.targetRadius * 2,
+              transform: "translate(-50%, -50%)",
+            }}
+          >
+            <div className="relative h-full w-full">
+              <div className="absolute inset-0 rounded-full bg-red-500 animate-pulse" />
+              <div className="absolute rounded-full bg-white" style={{ inset: layoutState.targetRadius * 0.33 }} />
+              <div className="absolute rounded-full bg-red-500" style={{ inset: layoutState.targetRadius * 0.67 }} />
+              <div className="absolute rounded-full bg-white shadow-lg" style={{ inset: layoutState.targetRadius * 0.88 }} />
+            </div>
+          </div>
+
+          {ballPhase === "ready" && gameStarted && difficulty !== "hard" && (
+            <svg className="absolute inset-0 z-30 w-full h-full opacity-75" viewBox={`0 0 ${layoutState.screenW} ${layoutState.screenH}`} preserveAspectRatio="none">
+              <defs>
+                <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                  <polygon points="0 0, 6 3, 0 6" fill="#facc15" />
+                </marker>
+              </defs>
+              <line x1={ballPosition.x} y1={ballPosition.y} x2={bullseyeTarget.x} y2={bullseyeTarget.y} stroke="#facc15" strokeWidth="2" strokeDasharray="8 6" markerEnd="url(#arrowhead)" />
+            </svg>
+          )}
+
+          <div
+            className={`absolute z-40 ${ballPhase === "missed" ? "opacity-60" : ""}`}
+            style={{
+              left: ballPosition.x,
+              top: ballPosition.y,
+              width: layoutState.ballRadius * 2,
+              height: layoutState.ballRadius * 2,
+              transform: "translate(-50%, -50%)",
+              filter: ballPhase === "hit" ? "drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))" : "drop-shadow(0 10px 15px rgba(0,0,0,0.5))",
+            }}
+          >
+            {getBallImageUrl(currentBall) ? (
+              <img src={getBallImageUrl(currentBall)!} alt="Ball" className="w-full h-full object-contain" />
+            ) : (
+              <div className="w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-orange-700 shadow-2xl" />
+            )}
+          </div>
+        </div>
+
+        {DEBUG_LAYOUT && (
+          <div className="absolute inset-0 z-[45] pointer-events-none text-[10px] font-mono text-white">
+            <div className="absolute left-0 right-0 h-px bg-lime-400" style={{ top: layoutState.roadTopY }} />
+            <div className="absolute left-0 right-0 h-px bg-red-400" style={{ top: layoutState.roadBottomY }} />
+            <div className="absolute h-3 w-3 rounded-full bg-lime-400" style={{ left: layoutState.playerStartX, top: layoutState.playerStartY, transform: "translate(-50%, -50%)" }} />
+            <div className="absolute h-3 w-3 rounded-full bg-red-400" style={{ left: layoutState.targetX, top: layoutState.targetY, transform: "translate(-50%, -50%)" }} />
+            <div className="absolute left-2 top-2 rounded bg-black/70 px-2 py-1">
+              scene {Math.round(layoutState.screenW)}x{Math.round(layoutState.screenH)}
+            </div>
+          </div>
+        )}
+
+        <div
+          className="absolute left-0 right-0 z-50 flex flex-wrap justify-between items-start gap-1.5 px-2"
+          style={{ top: "max(0.4rem, env(safe-area-inset-top))", height: layoutState.hudBottomY }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center gap-1.5 sm:gap-3">
             {showBackConfirm ? (
               <div className="flex items-center gap-1 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-2 py-1">
                 <span className="text-xs text-foreground font-medium">Quit?</span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={onBackToDifficulty}
-                  className="h-6 px-2 text-xs"
-                >
-                  Yes
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowBackConfirm(false)}
-                  className="h-6 px-2 text-xs"
-                >
-                  No
-                </Button>
+                <Button variant="destructive" size="sm" onClick={onBackToDifficulty} className="h-6 px-2 text-xs">Yes</Button>
+                <Button variant="outline" size="sm" onClick={() => setShowBackConfirm(false)} className="h-6 px-2 text-xs">No</Button>
               </div>
             ) : (
               <Button
@@ -1304,6 +1553,8 @@ export const GameCanvas = ({
               </Button>
             )}
             
+            {isPlaying && ballPhase === 'ready' && (
+
             {ballPhase === 'ready' && (
               <div>
                 <ThrowMeter value={power} isCharging={isCharging} disabled={isThrowing || isBallFlying} />
@@ -1311,6 +1562,7 @@ export const GameCanvas = ({
             )}
           </div>
           
+
           <div className="flex items-center gap-1.5 sm:gap-3 w-full sm:w-auto justify-end">
             <Card className="px-2 py-1.5 bg-card/90 backdrop-blur-sm border border-primary flex-shrink-0">
               <div className="flex items-center gap-2 sm:gap-4">
@@ -1337,7 +1589,7 @@ export const GameCanvas = ({
                 </div>
               </div>
             </Card>
-            
+
             <div>
               <CoinDisplay coins={coins} />
             </div>
@@ -1350,8 +1602,8 @@ export const GameCanvas = ({
             gameWon ? "bg-gradient-to-b from-purple-800 to-purple-950" : ""
           }`}
           style={{
-            top: `${ROAD_TOP_PERCENT}%`,
-            bottom: `${100 - ROAD_BOTTOM_PERCENT}%`,
+            top: `${layoutState.roadTopY}px`,
+            bottom: `${layoutState.screenH - layoutState.roadBottomY}px`,
             background: gameWon ? undefined : "hsl(var(--game-street))",
           }}
         >
@@ -1365,14 +1617,25 @@ export const GameCanvas = ({
           ))}
         </div>
 
-        <div className="absolute left-0 right-0 h-1 bg-gray-300/90 shadow-md pointer-events-none" style={{ top: `${CURB_Y_PERCENT}%` }} />
+        <div className="absolute left-0 right-0 h-1 bg-gray-300/90 shadow-md pointer-events-none" style={{ top: `${layoutState.farCurbY}px` }} />
 
         <div className="absolute inset-0 pointer-events-none">
-          {curbCoins.map((coin) => (
-            <HoveringCoin key={coin.id} position={coin.position} value={coin.value} collected={coin.collected} />
+          {visibleCurbCoins.map((coin) => (
+            <div
+              key={coin.id}
+              className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 opacity-100 scale-100"
+              style={{ left: `${coin.x}px`, top: `${coin.y}px` }}
+            >
+              <div className="relative animate-bounce">
+                <div className="absolute inset-0 bg-yellow-400 rounded-full blur-md opacity-40" />
+                <div className="relative w-8 h-8 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full border-2 border-yellow-700 shadow-lg flex items-center justify-center text-yellow-950 text-xs font-bold">
+                  {coin.value}
+                </div>
+              </div>
+            </div>
           ))}
 
-          <div className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-75" style={{ left: `${bullseyeTarget.position}%`, top: `${TARGET_Y}%` }}>
+          <div className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-75" style={{ left: `${bullseyeTarget.x}px`, top: `${bullseyeTarget.y}px` }}>
             <div className="relative">
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-red-500 animate-pulse" />
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white" />
@@ -1382,23 +1645,23 @@ export const GameCanvas = ({
           </div>
 
           {ballPhase === "ready" && gameStarted && difficulty !== "hard" && (
-            <svg className="absolute inset-0 w-full h-full opacity-75" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <svg className="absolute inset-0 w-full h-full opacity-75" viewBox={`0 0 ${layoutState.screenW} ${layoutState.screenH}`} preserveAspectRatio="none">
               <defs>
                 <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
                   <polygon points="0 0, 6 3, 0 6" fill="#facc15" />
                 </marker>
               </defs>
-              <line x1={ballPosition.x} y1={ballPosition.y} x2={bullseyeTarget.position} y2={TARGET_Y} stroke="#facc15" strokeWidth="1.5" strokeDasharray="4 3" markerEnd="url(#arrowhead)" />
+              <line x1={ballPosition.x} y1={ballPosition.y} x2={bullseyeTarget.x} y2={bullseyeTarget.y} stroke="#facc15" strokeWidth="2" strokeDasharray="8 6" markerEnd="url(#arrowhead)" />
             </svg>
           )}
 
           <div
             className={`absolute ${ballPhase === "missed" ? "opacity-60" : ""}`}
             style={{
-              width: `${Math.max(42, 72 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
-              height: `${Math.max(42, 72 * Math.min(viewport.scaleX, viewport.scaleY))}px`,
-              left: `${ballPosition.x}%`,
-              top: `${ballPosition.y}%`,
+              width: `${layoutState.ballRadius * 2}px`,
+              height: `${layoutState.ballRadius * 2}px`,
+              left: `${ballPosition.x}px`,
+              top: `${ballPosition.y}px`,
               transform: "translate(-50%, -50%)",
               filter: ballPhase === "hit" ? "drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))" : "drop-shadow(0 10px 15px rgba(0,0,0,0.5))",
             }}
@@ -1413,11 +1676,24 @@ export const GameCanvas = ({
 
 
         {/* Controls - single bottom overlay for mobile */}
-        <div className="absolute left-0 right-0 z-20 flex flex-col items-center gap-2 bg-black/30 px-2 py-2 backdrop-blur-sm" style={{ top: `${MOBILE_LAYOUT.CONTROLS_TOP_PERCENT}%`, height: "min(12dvh, 112px)", paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}>
+        {isPlaying && !showBackConfirm && (
+        <div className="absolute left-0 right-0 z-20 flex flex-col items-center gap-2 bg-black/30 px-2 py-2 backdrop-blur-sm" style={{ top: `${layoutState.controlsTopY}px`, height: "min(12dvh, 112px)", paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}>
           {ballPhase === "ready" && (
             <div className="flex items-center gap-2 w-full justify-center">
               <Button variant="outline" size="sm" onClick={moveLeft} disabled={isThrowing || isBallFlying} className="min-h-[44px] px-3">←</Button>
-              <div className="text-xs text-white/80 font-semibold min-w-[52px] text-center">{Math.round(ballHorizontalPosition)}%</div>
+        <div
+          className="absolute left-0 right-0 z-50 flex flex-col items-center gap-2 bg-black/30 px-2 py-2 backdrop-blur-sm"
+          style={{
+            top: layoutState.controlsTopY,
+            height: layoutState.screenH - layoutState.controlsTopY,
+            paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))",
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {ballPhase === "ready" && (
+            <div className="flex items-center gap-2 w-full justify-center">
+              <Button variant="outline" size="sm" onClick={moveLeft} disabled={isThrowing || isBallFlying} className="min-h-[44px] px-3">←</Button>
+              <div className="text-xs text-white/80 font-semibold min-w-[52px] text-center">{Math.round(ballPosition.x)}px</div>
               <Button variant="outline" size="sm" onClick={moveRight} disabled={isThrowing || isBallFlying} className="min-h-[44px] px-3">→</Button>
             </div>
           )}
@@ -1438,10 +1714,18 @@ export const GameCanvas = ({
             </Button>
           </div>
         </div>
+        )}
+        {DEBUG_LAYOUT && (
+          <div className="absolute right-2 top-2 z-[60] rounded bg-black/70 px-2 py-1 text-xs text-white">
+            {Math.round(layoutState.controlsTopY)}px
+          </div>
+        )}
+        </>
+        )}
       </div>
 
       {/* Pause overlay */}
-      {isPaused && gameStarted && !gameEnded && (
+      {isPausedView && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-card/95 rounded-2xl p-8 text-center shadow-2xl border border-border">
             <div className="text-5xl mb-4">⏸</div>
