@@ -51,6 +51,8 @@ type GameLayout = {
 
 const computeGameLayout = (width: number, height: number): GameLayout => {
   const hudBottomY    = height * 0.16;
+  const roadTopY      = height * 0.55;   // far curb (opposite side, top of view)
+  const controlsTopY  = height * 0.84;   // near curb / controls start
   const roadTopY      = height * 0.56;   // far curb (opposite side, top of view)
   const controlsTopY  = height * 0.80;   // near curb / controls start
   const roadBottomY   = controlsTopY;
@@ -66,7 +68,7 @@ const computeGameLayout = (width: number, height: number): GameLayout => {
     controlsTopY,
     playerStartX:  width * 0.50,                          // center of near curb
     playerStartY:  roadBottomY - Math.max(28, height * 0.04), // just above near curb
-    targetX:       width * 0.50,                          // starts centered on far curb
+    targetX:       width * 0.82,                          // starts near right side like reference
     targetY:       roadTopY + Math.max(18, height * 0.025),   // just below far curb
     ballRadius:    Math.max(16, width * 0.038),
     targetRadius:  Math.max(22, width * 0.06),
@@ -1290,6 +1292,9 @@ export const GameCanvas = ({
           />
 
           {/* Perspective lane dividers — two converging lines giving 3D road feel */}
+          <svg className="absolute inset-0 h-full w-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polygon points="0,100 100,100 56,0 44,0" fill="rgba(45,45,45,0.9)" />
+            <line x1="50" y1="100" x2="50" y2="0" stroke="rgba(245,196,0,0.95)" strokeWidth="1.6" strokeDasharray="8 10" />
           <svg className="absolute inset-0 h-full w-full pointer-events-none" preserveAspectRatio="none">
             <polygon points="2,100 98,100 55,0 45,0" fill="rgba(45,45,45,0.92)" />
             <line x1="50%" y1="100%" x2="50%" y2="0%" stroke="rgba(245,196,0,0.95)" strokeWidth="2.5" strokeDasharray="12 14" />
@@ -1332,17 +1337,6 @@ export const GameCanvas = ({
             </div>
           </div>
 
-          {ballPhase === "ready" && gameStarted && difficulty !== "hard" && (
-            <svg className="absolute inset-0 z-[35] w-full h-full opacity-75" viewBox={`0 0 ${layoutState.screenW} ${layoutState.screenH}`} preserveAspectRatio="none">
-              <defs>
-                <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-                  <polygon points="0 0, 6 3, 0 6" fill="#facc15" />
-                </marker>
-              </defs>
-              <line x1={ballPosition.x} y1={ballPosition.y} x2={bullseyeTarget.x} y2={bullseyeTarget.y} stroke="#facc15" strokeWidth="2" strokeDasharray="8 6" markerEnd="url(#arrowhead)" />
-            </svg>
-          )}
-
           <div
             className={`absolute z-40 ${ballPhase === "missed" ? "opacity-60" : ""}`}
             style={{
@@ -1374,6 +1368,7 @@ export const GameCanvas = ({
           }}
         >
           <div className="h-full flex flex-col justify-end gap-2">
+            <div className="flex items-center justify-center gap-3">
             <div className="flex items-end justify-between gap-2">
               <SoundToggle className="flex-none" />
               <Button
@@ -1381,6 +1376,7 @@ export const GameCanvas = ({
                 size="sm"
                 onClick={moveLeft}
                 disabled={isThrowing || isBallFlying || ballPhase !== "ready"}
+                className="h-14 min-w-[140px] rounded-2xl border-2 border-yellow-400 px-4 text-xl font-bold text-yellow-400"
                 className="h-14 rounded-2xl border-2 border-yellow-400 px-8 text-4xl font-bold text-yellow-400"
               >
                 ← LEFT
@@ -1397,7 +1393,7 @@ export const GameCanvas = ({
                 disabled={isThrowing || isBallFlying}
                 className="h-16 w-full rounded-2xl px-3 text-2xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl animate-pulse-glow select-none"
               >
-                {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
+                ← LEFT
               </Button>
               </div>
               <Button
@@ -1405,6 +1401,32 @@ export const GameCanvas = ({
                 size="sm"
                 onClick={moveRight}
                 disabled={isThrowing || isBallFlying || ballPhase !== "ready"}
+                className="h-14 min-w-[140px] rounded-2xl border-2 border-yellow-400 px-4 text-xl font-bold text-yellow-400"
+              >
+                RIGHT →
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <SoundToggle className="flex-none" />
+              <div className="relative min-w-0 flex-1">
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-lg font-bold text-primary-foreground shadow-lg">
+                  {Math.round(power)}%
+                </div>
+                <Button
+                  size="lg"
+                  onPointerDown={(e) => { e.stopPropagation(); startCharging(); }}
+                  onPointerUp={(e) => { e.stopPropagation(); releaseThrow(); }}
+                  onPointerLeave={() => { if (isCharging) releaseThrow(); }}
+                  disabled={isThrowing || isBallFlying}
+                  className="h-16 w-full rounded-2xl px-3 text-2xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl animate-pulse-glow select-none"
+                >
+                  {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
+                </Button>
+              </div>
+              <Button variant="outline" size="sm" onClick={restartGame} aria-label="Restart game" className="h-12 flex-none px-3 text-sm">
+                RESTART
+              </Button>
+            </div>
                 className="h-14 rounded-2xl border-2 border-yellow-400 px-8 text-4xl font-bold text-yellow-400"
               >
                 RIGHT →
