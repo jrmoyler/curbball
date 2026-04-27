@@ -77,7 +77,7 @@ const computeGameLayout = (width: number, height: number): GameLayout => {
   };
 };
 
-const DEBUG_GAME_CANVAS = false;
+const TIME_LIMIT = 180;
 
 type PlayState = "IDLE" | "AIMING" | "THROWING" | "BALL_IN_PLAY" | "RESOLVING" | "SCORED" | "MISSED" | "RESET";
 
@@ -127,15 +127,9 @@ export const GameCanvas = ({
   const [ballPhase, setBallPhase] = useState<'ready' | 'flying' | 'hit' | 'bouncing' | 'missed'>('ready');
   const [playState, setPlayState] = useState<PlayState>("IDLE");
   const [attempts, setAttempts] = useState(5);
-  const [viewport, setViewport] = useState(() => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-    scaleX: window.innerWidth / 1280,
-    scaleY: window.innerHeight / 720,
-  }));
   
   const [gameStarted, setGameStarted] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(180); // 3 minutes in seconds
+  const [timeRemaining, setTimeRemaining] = useState(TIME_LIMIT);
   const [gameEnded, setGameEnded] = useState(false);
   const [finalTime, setFinalTime] = useState(0);
   const obstacleIdRef = useRef(0);
@@ -163,7 +157,6 @@ export const GameCanvas = ({
   const throwStartTimeRef = useRef<number | null>(null);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
   useEffect(() => { powerRef.current = power; }, [power]);
-  const lastFrameRef = useRef(0);
   const obstaclesRef = useRef<Obstacle[]>([]);
   const curbCoinsRef = useRef<CurbCoin[]>([]);
   const bullseyeRef = useRef<BullseyeTarget>({ x: initialLayout.targetX, y: initialLayout.targetY, direction: 1 });
@@ -195,8 +188,6 @@ export const GameCanvas = ({
   useEffect(() => {
     playStateRef.current = playState;
   }, [playState]);
-
-  const TIME_LIMIT = 180; // 3 minutes in seconds
 
   // Memoised star positions so they don't re-randomise on every render
   const starPositions = useMemo(() =>
@@ -262,12 +253,6 @@ export const GameCanvas = ({
     const handleResize = () => {
       const nextWidth = window.innerWidth;
       const nextHeight = window.innerHeight;
-      setViewport({
-        width: nextWidth,
-        height: nextHeight,
-        scaleX: nextWidth / 1280,
-        scaleY: nextHeight / 720,
-      });
       const nextLayout = computeGameLayout(nextWidth, nextHeight);
       setLayoutState(nextLayout);
       if (!isBallFlying) {
@@ -632,11 +617,9 @@ export const GameCanvas = ({
 
     const loop = (timestamp: number) => {
       if (cancelled) return;
-      if (!lastFrameRef.current) lastFrameRef.current = timestamp;
       const last = lastFrameTimeRef.current ?? timestamp;
       const delta = Math.min((timestamp - last) / 1000, 0.033);
       lastFrameTimeRef.current = timestamp;
-      lastFrameRef.current = timestamp;
 
       setObstacles((prev) =>
         prev
@@ -648,8 +631,8 @@ export const GameCanvas = ({
         const liveLayout = layoutRef.current;
         let newX = prev.x + prev.direction * currentDifficultySettings.bullseyeSpeed * delta * (liveLayout.screenW * 0.14);
         let newDirection = prev.direction;
-        const maxX = liveLayout.screenW * 0.42;
-        const minX = liveLayout.screenW * 0.18;
+        const maxX = liveLayout.screenW * 0.75;
+        const minX = liveLayout.screenW * 0.25;
         if (newX >= maxX) {
           newX = maxX;
           newDirection = -1;
@@ -780,19 +763,6 @@ export const GameCanvas = ({
         }
 
         setBallPosition({ x: b.x, y: b.y });
-
-        if (DEBUG_GAME_CANVAS) {
-          console.debug("[GameCanvas]", {
-            playState: playStateRef.current,
-            ball: { x: b.x, y: b.y, vx: b.vx, vy: b.vy },
-            layout: {
-              roadTopY: liveLayout.roadTopY,
-              roadBottomY: liveLayout.roadBottomY,
-              targetX: liveLayout.targetX,
-              targetY: liveLayout.targetY,
-            },
-          });
-        }
       }
 
       animationFrameRef.current = requestAnimationFrame(loop);
@@ -810,9 +780,8 @@ export const GameCanvas = ({
         resetTimeoutRef.current = null;
       }
       lastFrameTimeRef.current = null;
-      lastFrameRef.current = 0;
     };
-  }, [currentDifficultySettings.bullseyeSpeed, gameEnded, gameStarted, isPaused, onAchievementProgress, onChallengeProgress, viewport.height, viewport.width]);
+  }, [currentDifficultySettings.bullseyeSpeed, gameEnded, gameStarted, isPaused, onAchievementProgress, onChallengeProgress, layoutState.screenH, layoutState.screenW]);
 
   const startCharging = () => {
     if (!gameStartedRef.current || gameEndedRef.current || isPausedRef.current) return;
@@ -1340,7 +1309,7 @@ export const GameCanvas = ({
           </svg>
 
           {obstacles.map((obs) => (
-            <div key={obs.id} className="absolute transition-all" style={{ left: `${obs.position}%`, bottom: "14%" }}>
+            <div key={obs.id} className="absolute" style={{ left: `${obs.position}%`, top: "30%" }}>
               <div className={`${obs.type === "car" ? "w-16 h-10 bg-gradient-to-r from-red-600 to-red-800" : "w-10 h-7 bg-gradient-to-r from-blue-600 to-blue-800"} rounded-lg shadow-lg`} />
             </div>
           ))}
