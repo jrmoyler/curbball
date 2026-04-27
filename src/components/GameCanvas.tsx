@@ -2,8 +2,6 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfettiEffect } from "./ConfettiEffect";
-import { ThrowMeter } from "./ThrowMeter";
-import { CoinDisplay } from "./CoinDisplay";
 import { ShareButton } from "./ShareButton";
 import { SoundToggle } from "./SoundToggle";
 import { saveScore } from "./LocalLeaderboard";
@@ -52,9 +50,9 @@ type GameLayout = {
 };
 
 const computeGameLayout = (width: number, height: number): GameLayout => {
-  const hudBottomY    = height * 0.18;
-  const roadTopY      = height * 0.30;   // far curb (opposite side, top of view)
-  const controlsTopY  = height * 0.88;   // near curb / controls start
+  const hudBottomY    = height * 0.16;
+  const roadTopY      = height * 0.55;   // far curb (opposite side, top of view)
+  const controlsTopY  = height * 0.84;   // near curb / controls start
   const roadBottomY   = controlsTopY;
   const roadH         = roadBottomY - roadTopY; // ~58% of screen
 
@@ -68,7 +66,7 @@ const computeGameLayout = (width: number, height: number): GameLayout => {
     controlsTopY,
     playerStartX:  width * 0.50,                          // center of near curb
     playerStartY:  roadBottomY - Math.max(28, height * 0.04), // just above near curb
-    targetX:       width * 0.50,                          // starts centered on far curb
+    targetX:       width * 0.82,                          // starts near right side like reference
     targetY:       roadTopY + Math.max(18, height * 0.025),   // just below far curb
     ballRadius:    Math.max(16, width * 0.038),
     targetRadius:  Math.max(22, width * 0.06),
@@ -648,8 +646,8 @@ export const GameCanvas = ({
         const liveLayout = layoutRef.current;
         let newX = prev.x + prev.direction * currentDifficultySettings.bullseyeSpeed * delta * (liveLayout.screenW * 0.14);
         let newDirection = prev.direction;
-        const maxX = liveLayout.screenW * 0.42;
-        const minX = liveLayout.screenW * 0.18;
+        const maxX = liveLayout.screenW * 0.9;
+        const minX = liveLayout.screenW * 0.1;
         if (newX >= maxX) {
           newX = maxX;
           newDirection = -1;
@@ -1049,10 +1047,6 @@ export const GameCanvas = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getElapsedTime = () => {
-    return TIME_LIMIT - timeRemaining;
-  };
-
   // Get backdrop URL based on selected backdrop
   const getBackdropUrl = () => {
     const backdropMap: Record<string, string> = {
@@ -1207,10 +1201,10 @@ export const GameCanvas = ({
           <>
         {/* HUD - Mobile Responsive */}
         <div
-          className="absolute left-2 right-2 z-50 flex flex-wrap justify-between items-start gap-1.5"
-          style={{ top: "max(0.4rem, env(safe-area-inset-top))", maxHeight: `${layoutState.hudBottomY}px` }}
+          className="absolute left-3 right-3 z-50 flex items-start justify-between gap-2"
+          style={{ top: "max(0.65rem, env(safe-area-inset-top))", maxHeight: `${layoutState.hudBottomY}px` }}
         >
-          <div className="flex items-center gap-1.5 sm:gap-3">
+          <div className="flex items-center gap-2">
             {showBackConfirm ? (
               <div className="flex items-center gap-1 bg-card/95 backdrop-blur-sm border border-border rounded-lg px-2 py-1">
                 <span className="text-xs text-foreground font-medium">Quit?</span>
@@ -1236,61 +1230,29 @@ export const GameCanvas = ({
                 variant="outline"
                 size="sm"
                 onClick={() => gameStarted && !gameEnded ? setShowBackConfirm(true) : onBackToDifficulty?.()}
-                className="bg-card/90 backdrop-blur-sm hover:bg-card text-xs sm:text-sm px-2 sm:px-4"
+                className="h-12 rounded-2xl border-2 border-primary/30 bg-card/95 px-4 text-xl font-bold backdrop-blur-sm hover:bg-card"
               >
-                ← Menu
+                ← Back
               </Button>
-            )}
-
-            {gameStarted && !gameEnded && (
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label={isPaused ? 'Resume game' : 'Pause game'}
-                onClick={() => setIsPaused(p => !p)}
-                className="bg-card/90 backdrop-blur-sm hover:bg-card text-xs sm:text-sm px-2 sm:px-4 min-w-[44px] min-h-[44px]"
-              >
-                {isPaused ? '▶' : '⏸'}
-              </Button>
-            )}
-            
-            {isPlaying && ballPhase === 'ready' && (
-              <div>
-                <ThrowMeter value={power} isCharging={isCharging} disabled={isThrowing || isBallFlying} />
-              </div>
             )}
           </div>
           
-          <div className="flex items-center gap-1.5 sm:gap-3 w-full sm:w-auto justify-end">
-            <Card className="px-2 py-1.5 bg-card/90 backdrop-blur-sm border border-primary flex-shrink-0">
-              <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 justify-end">
+            <Card className="rounded-3xl border-2 border-primary bg-card/95 px-4 py-2 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
                 <div className="text-center">
-                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">SCORE</div>
-                  <div className="text-base sm:text-2xl font-bold text-primary">{score}</div>
+                  <div className="text-sm text-muted-foreground font-semibold">SCORE</div>
+                  <div className="text-5xl font-bold leading-none text-primary">{score}</div>
                 </div>
-                <div className="h-6 sm:h-8 w-px bg-border hidden sm:block" />
-                <div className="text-center hidden md:block">
-                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">ELAPSED</div>
-                  <div className="text-base sm:text-2xl font-bold text-accent">{formatTime(getElapsedTime())}</div>
-                </div>
-                <div className="h-6 sm:h-8 w-px bg-border" />
+                <div className="h-10 w-px bg-border" />
                 <div className="text-center">
-                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold">TIME</div>
-                  <div className={`text-base sm:text-2xl font-bold ${
+                  <div className="text-sm text-muted-foreground font-semibold">TIME</div>
+                  <div className={`text-5xl font-bold leading-none ${
                     timeRemaining < 30 ? 'text-red-500 animate-pulse' : 'text-foreground'
                   }`}>{formatTime(timeRemaining)}</div>
                 </div>
-                <div className="h-6 sm:h-8 w-px bg-border" />
-                <div className="text-center">
-                  <div className="text-[10px] sm:text-xs text-muted-foreground font-semibold whitespace-nowrap"><span className="sm:hidden">LIVES</span><span className="hidden sm:inline">LIVES/ATTEMPTS</span></div>
-                  <div className="text-base sm:text-2xl font-bold text-orange-400">{attempts}</div>
-                </div>
               </div>
             </Card>
-            
-            <div>
-              <CoinDisplay coins={coins} />
-            </div>
           </div>
         </div>
 
@@ -1300,10 +1262,7 @@ export const GameCanvas = ({
           style={{
             top: layoutState.roadTopY,
             height: layoutState.roadBottomY - layoutState.roadTopY,
-            background: gameWon
-              ? "linear-gradient(to top, rgba(88,28,135,1) 0%, rgba(107,33,168,0.97) 50%, rgba(126,34,206,0.94) 100%)"
-              : "linear-gradient(to top, rgba(45,42,38,1) 0%, rgba(32,30,28,0.97) 50%, rgba(22,20,18,0.96) 100%)",
-            boxShadow: "0 -10px 24px rgba(0,0,0,0.28)",
+            background: "transparent",
           }}
         >
           {/* Far curb strip at top of road (opposite side where bullseye sits) */}
@@ -1331,11 +1290,9 @@ export const GameCanvas = ({
           />
 
           {/* Perspective lane dividers — two converging lines giving 3D road feel */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-70" preserveAspectRatio="none">
-            {/* Left lane marker — runs from bottom-left toward center-top */}
-            <line x1="25%" y1="100%" x2="45%" y2="0%" stroke="rgba(245,196,0,0.7)" strokeWidth="2" strokeDasharray="24 16" />
-            {/* Right lane marker — runs from bottom-right toward center-top */}
-            <line x1="75%" y1="100%" x2="55%" y2="0%" stroke="rgba(245,196,0,0.7)" strokeWidth="2" strokeDasharray="24 16" />
+          <svg className="absolute inset-0 h-full w-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polygon points="0,100 100,100 56,0 44,0" fill="rgba(45,45,45,0.9)" />
+            <line x1="50" y1="100" x2="50" y2="0" stroke="rgba(245,196,0,0.95)" strokeWidth="1.6" strokeDasharray="8 10" />
           </svg>
 
           {obstacles.map((obs) => (
@@ -1375,17 +1332,6 @@ export const GameCanvas = ({
             </div>
           </div>
 
-          {ballPhase === "ready" && gameStarted && difficulty !== "hard" && (
-            <svg className="absolute inset-0 z-[35] w-full h-full opacity-75" viewBox={`0 0 ${layoutState.screenW} ${layoutState.screenH}`} preserveAspectRatio="none">
-              <defs>
-                <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-                  <polygon points="0 0, 6 3, 0 6" fill="#facc15" />
-                </marker>
-              </defs>
-              <line x1={ballPosition.x} y1={ballPosition.y} x2={bullseyeTarget.x} y2={bullseyeTarget.y} stroke="#facc15" strokeWidth="2" strokeDasharray="8 6" markerEnd="url(#arrowhead)" />
-            </svg>
-          )}
-
           <div
             className={`absolute z-40 ${ballPhase === "missed" ? "opacity-60" : ""}`}
             style={{
@@ -1416,28 +1362,50 @@ export const GameCanvas = ({
             paddingBottom: "max(env(safe-area-inset-bottom), 14px)",
           }}
         >
-          <div className="h-full flex items-center justify-between gap-3">
-            {ballPhase === "ready" && (
-              <div className="flex flex-none items-center gap-2">
-                <Button variant="outline" size="sm" onClick={moveLeft} disabled={isThrowing || isBallFlying} className="h-11 min-w-[42px] px-3">←</Button>
-                <Button variant="outline" size="sm" onClick={moveRight} disabled={isThrowing || isBallFlying} className="h-11 min-w-[42px] px-3">→</Button>
-              </div>
-            )}
-            <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <SoundToggle className="flex-none" />
+          <div className="h-full flex flex-col justify-end gap-2">
+            <div className="flex items-center justify-center gap-3">
               <Button
-                size="lg"
-                onPointerDown={(e) => { e.stopPropagation(); startCharging(); }}
-                onPointerUp={(e) => { e.stopPropagation(); releaseThrow(); }}
-                onPointerLeave={() => { if (isCharging) releaseThrow(); }}
-                disabled={isThrowing || isBallFlying}
-                className="h-14 max-h-[58px] min-w-0 flex-1 px-3 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl animate-pulse-glow select-none sm:text-sm"
+                variant="outline"
+                size="sm"
+                onClick={moveLeft}
+                disabled={isThrowing || isBallFlying || ballPhase !== "ready"}
+                className="h-14 min-w-[140px] rounded-2xl border-2 border-yellow-400 px-4 text-xl font-bold text-yellow-400"
               >
-                {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
+                ← LEFT
               </Button>
-              <Button variant="outline" size="sm" onClick={restartGame} aria-label="Restart game" className="h-11 flex-none px-2 text-xs sm:px-3 sm:text-sm">
-                Restart
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={moveRight}
+                disabled={isThrowing || isBallFlying || ballPhase !== "ready"}
+                className="h-14 min-w-[140px] rounded-2xl border-2 border-yellow-400 px-4 text-xl font-bold text-yellow-400"
+              >
+                RIGHT →
               </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <SoundToggle className="flex-none" />
+              <div className="relative min-w-0 flex-1">
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-lg font-bold text-primary-foreground shadow-lg">
+                  {Math.round(power)}%
+                </div>
+                <Button
+                  size="lg"
+                  onPointerDown={(e) => { e.stopPropagation(); startCharging(); }}
+                  onPointerUp={(e) => { e.stopPropagation(); releaseThrow(); }}
+                  onPointerLeave={() => { if (isCharging) releaseThrow(); }}
+                  disabled={isThrowing || isBallFlying}
+                  className="h-16 w-full rounded-2xl px-3 text-2xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl animate-pulse-glow select-none"
+                >
+                  {isBallFlying ? "THROWING..." : isCharging ? "RELEASE!" : "HOLD TO CHARGE"}
+                </Button>
+              </div>
+              <Button variant="outline" size="sm" onClick={restartGame} aria-label="Restart game" className="h-12 flex-none px-3 text-sm">
+                RESTART
+              </Button>
+            </div>
+            <div className="pb-1 text-center text-lg font-semibold text-white/80">
+              Streak: {consecutiveHits} • Coins: {coins}
             </div>
           </div>
         </div>
