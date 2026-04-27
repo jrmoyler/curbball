@@ -53,6 +53,8 @@ const computeGameLayout = (width: number, height: number): GameLayout => {
   const hudBottomY    = height * 0.16;
   const roadTopY      = height * 0.55;   // far curb (opposite side, top of view)
   const controlsTopY  = height * 0.84;   // near curb / controls start
+  const roadTopY      = height * 0.56;   // far curb (opposite side, top of view)
+  const controlsTopY  = height * 0.80;   // near curb / controls start
   const roadBottomY   = controlsTopY;
   const roadH         = roadBottomY - roadTopY; // ~58% of screen
 
@@ -1293,6 +1295,9 @@ export const GameCanvas = ({
           <svg className="absolute inset-0 h-full w-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
             <polygon points="0,100 100,100 56,0 44,0" fill="rgba(45,45,45,0.9)" />
             <line x1="50" y1="100" x2="50" y2="0" stroke="rgba(245,196,0,0.95)" strokeWidth="1.6" strokeDasharray="8 10" />
+          <svg className="absolute inset-0 h-full w-full pointer-events-none" preserveAspectRatio="none">
+            <polygon points="2,100 98,100 55,0 45,0" fill="rgba(45,45,45,0.92)" />
+            <line x1="50%" y1="100%" x2="50%" y2="0%" stroke="rgba(245,196,0,0.95)" strokeWidth="2.5" strokeDasharray="12 14" />
           </svg>
 
           {obstacles.map((obs) => (
@@ -1364,15 +1369,33 @@ export const GameCanvas = ({
         >
           <div className="h-full flex flex-col justify-end gap-2">
             <div className="flex items-center justify-center gap-3">
+            <div className="flex items-end justify-between gap-2">
+              <SoundToggle className="flex-none" />
               <Button
                 variant="outline"
                 size="sm"
                 onClick={moveLeft}
                 disabled={isThrowing || isBallFlying || ballPhase !== "ready"}
                 className="h-14 min-w-[140px] rounded-2xl border-2 border-yellow-400 px-4 text-xl font-bold text-yellow-400"
+                className="h-14 rounded-2xl border-2 border-yellow-400 px-8 text-4xl font-bold text-yellow-400"
               >
                 ← LEFT
               </Button>
+              <div className="relative min-w-0 flex-1">
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-lg font-bold text-primary-foreground shadow-lg">
+                  {Math.round(power)}%
+                </div>
+                <Button
+                size="lg"
+                onPointerDown={(e) => { e.stopPropagation(); startCharging(); }}
+                onPointerUp={(e) => { e.stopPropagation(); releaseThrow(); }}
+                onPointerLeave={() => { if (isCharging) releaseThrow(); }}
+                disabled={isThrowing || isBallFlying}
+                className="h-16 w-full rounded-2xl px-3 text-2xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl animate-pulse-glow select-none"
+              >
+                ← LEFT
+              </Button>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -1401,6 +1424,14 @@ export const GameCanvas = ({
                 </Button>
               </div>
               <Button variant="outline" size="sm" onClick={restartGame} aria-label="Restart game" className="h-12 flex-none px-3 text-sm">
+                RESTART
+              </Button>
+            </div>
+                className="h-14 rounded-2xl border-2 border-yellow-400 px-8 text-4xl font-bold text-yellow-400"
+              >
+                RIGHT →
+              </Button>
+              <Button variant="outline" size="sm" onClick={restartGame} aria-label="Restart game" className="h-11 flex-none px-2 text-xs sm:px-3 sm:text-sm">
                 RESTART
               </Button>
             </div>
