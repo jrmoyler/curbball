@@ -1386,6 +1386,22 @@ export const GameCanvas = ({
             </svg>
           )}
 
+          {currentBall === 'fire-ball' && ballPhase !== 'missed' && (
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                width: `${layoutState.ballRadius * 3.2}px`,
+                height: `${layoutState.ballRadius * 3.2}px`,
+                left: `${ballPosition.x}px`,
+                top: `${ballPosition.y}px`,
+                zIndex: 39,
+                borderRadius: "50%",
+                background: "radial-gradient(circle, rgba(255,140,0,0.45) 0%, rgba(255,60,0,0.28) 45%, rgba(255,20,0,0.1) 70%, transparent 100%)",
+                animation: "fire-aura-pulse 0.65s ease-in-out infinite",
+              }}
+            />
+          )}
+
           <div
             className={`absolute z-40 ${ballPhase === "missed" ? "opacity-60" : ""}`}
             style={{
@@ -1394,7 +1410,12 @@ export const GameCanvas = ({
               left: `${ballPosition.x}px`,
               top: `${ballPosition.y}px`,
               transform: "translate(-50%, -50%)",
-              filter: ballPhase === "hit" ? "drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))" : "drop-shadow(0 10px 15px rgba(0,0,0,0.5))",
+              filter: ballPhase === "hit"
+                ? "drop-shadow(0 0 20px rgba(255, 215, 0, 0.8))"
+                : currentBall === 'fire-ball'
+                  ? undefined
+                  : "drop-shadow(0 10px 15px rgba(0,0,0,0.5))",
+              animation: currentBall === 'fire-ball' ? "fire-glow 0.65s ease-in-out infinite" : undefined,
             }}
           >
             {getBallImageUrl(currentBall) ? (
