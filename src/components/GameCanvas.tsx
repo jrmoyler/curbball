@@ -1107,9 +1107,9 @@ export const GameCanvas = ({
       className="fixed inset-0 m-0 block w-screen overflow-hidden bg-center bg-no-repeat"
       style={{
         backgroundImage: `url(${getBackdropUrl()})`,
-        backgroundSize: "auto 100%",
+        backgroundSize: "cover",
         backgroundRepeat: "no-repeat",
-        backgroundPosition: "center top",
+        backgroundPosition: "center 30%",
         backgroundColor: "#171923",
         height: "100dvh",
       }}
@@ -1301,20 +1301,22 @@ export const GameCanvas = ({
             top: layoutState.roadTopY,
             height: layoutState.roadBottomY - layoutState.roadTopY,
             background: gameWon
-              ? "linear-gradient(to top, rgba(88,28,135,1) 0%, rgba(107,33,168,0.97) 50%, rgba(126,34,206,0.94) 100%)"
-              : "linear-gradient(to top, rgba(45,42,38,1) 0%, rgba(32,30,28,0.97) 50%, rgba(22,20,18,0.96) 100%)",
-            boxShadow: "0 -10px 24px rgba(0,0,0,0.28)",
+              ? "linear-gradient(to top, rgba(88,28,135,1) 0%, rgba(107,33,168,0.95) 40%, rgba(126,34,206,0.6) 70%, rgba(147,51,234,0) 100%)"
+              : "linear-gradient(to top, rgba(38,35,30,1) 0%, rgba(30,27,24,0.98) 35%, rgba(20,18,14,0.82) 58%, rgba(10,8,5,0.4) 78%, rgba(0,0,0,0) 100%)",
+            boxShadow: "0 -4px 12px rgba(0,0,0,0.15)",
           }}
         >
           {/* Far curb strip at top of road (opposite side where bullseye sits) */}
           <div
             className="absolute left-0 right-0 top-0"
             style={{
-              height: Math.max(14, layoutState.screenH * 0.018),
+              height: Math.max(8, layoutState.screenH * 0.01),
               background: gameWon
-                ? "linear-gradient(180deg, #fde047 0%, #ca8a04 100%)"
-                : "linear-gradient(180deg, #e2e8f0 0%, #94a3b8 100%)",
-              borderBottom: "1px solid rgba(255,255,255,0.25)",
+                ? "linear-gradient(180deg, rgba(253,224,71,0.5) 0%, rgba(202,138,4,0.2) 100%)"
+                : "linear-gradient(180deg, rgba(200,210,220,0.5) 0%, rgba(148,163,184,0.2) 100%)",
+              borderBottom: gameWon
+                ? "1px solid rgba(255,255,255,0.2)"
+                : "1px solid rgba(255,255,255,0.15)",
             }}
           />
 
