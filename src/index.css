@@ -103,29 +103,29 @@ All colors MUST be HSL.
     animation: shimmer 3s infinite;
   }
 
-  @keyframes fire-glow {
-    0%, 100% {
-      filter: drop-shadow(0 0 6px rgba(255, 100, 0, 0.95))
-              drop-shadow(0 0 14px rgba(255, 50, 0, 0.7))
-              drop-shadow(0 0 22px rgba(200, 30, 0, 0.4));
-    }
-    33% {
-      filter: drop-shadow(0 0 10px rgba(255, 180, 0, 1))
-              drop-shadow(0 0 22px rgba(255, 100, 0, 0.85))
-              drop-shadow(0 0 38px rgba(255, 50, 0, 0.55));
-    }
-    66% {
-      filter: drop-shadow(0 0 8px rgba(255, 60, 0, 1))
-              drop-shadow(0 0 18px rgba(255, 30, 0, 0.8))
-              drop-shadow(0 0 30px rgba(180, 20, 0, 0.5));
-    }
-  }
+}
 
-  @keyframes fire-aura-pulse {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.55; }
-    50% { transform: translate(-50%, -50%) scale(1.25); opacity: 0.3; }
+@keyframes fire-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(255, 100, 0, 0.95))
+            drop-shadow(0 0 14px rgba(255, 50, 0, 0.7))
+            drop-shadow(0 0 22px rgba(200, 30, 0, 0.4));
   }
+  33% {
+    filter: drop-shadow(0 0 10px rgba(255, 180, 0, 1))
+            drop-shadow(0 0 22px rgba(255, 100, 0, 0.85))
+            drop-shadow(0 0 38px rgba(255, 50, 0, 0.55));
+  }
+  66% {
+    filter: drop-shadow(0 0 8px rgba(255, 60, 0, 1))
+            drop-shadow(0 0 18px rgba(255, 30, 0, 0.8))
+            drop-shadow(0 0 30px rgba(180, 20, 0, 0.5));
+  }
+}
 
+@keyframes fire-aura-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.55; }
+  50% { transform: translate(-50%, -50%) scale(1.25); opacity: 0.3; }
 }
 
 @layer base {

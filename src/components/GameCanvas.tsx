@@ -53,10 +53,10 @@ type GameLayout = {
 
 const computeGameLayout = (width: number, height: number): GameLayout => {
   const hudBottomY    = height * 0.18;
-  const roadTopY      = height * 0.30;   // far curb (opposite side, top of view)
-  const controlsTopY  = height * 0.88;   // near curb / controls start
+  const roadTopY      = height * 0.44;   // far curb — school visible in top 44%
+  const controlsTopY  = height * 0.84;   // near curb / controls start
   const roadBottomY   = controlsTopY;
-  const roadH         = roadBottomY - roadTopY; // ~58% of screen
+  const roadH         = roadBottomY - roadTopY; // ~40% of screen
 
   return {
     screenW: width,
@@ -66,14 +66,14 @@ const computeGameLayout = (width: number, height: number): GameLayout => {
     roadTopY,
     roadBottomY,
     controlsTopY,
-    playerStartX:  width * 0.50,                          // center of near curb
-    playerStartY:  roadBottomY - Math.max(28, height * 0.04), // just above near curb
-    targetX:       width * 0.50,                          // starts centered on far curb
-    targetY:       roadTopY + Math.max(18, height * 0.025),   // just below far curb
+    playerStartX:  width * 0.50,
+    playerStartY:  roadBottomY - Math.max(24, height * 0.034),
+    targetX:       width * 0.50,
+    targetY:       roadTopY + Math.max(16, height * 0.022),
     ballRadius:    Math.max(16, width * 0.038),
     targetRadius:  Math.max(22, width * 0.06),
-    coinMinY:      roadTopY + roadH * 0.30,
-    coinMaxY:      roadTopY + roadH * 0.68,
+    coinMinY:      roadTopY + roadH * 0.28,
+    coinMaxY:      roadTopY + roadH * 0.70,
   };
 };
 
@@ -1107,9 +1107,9 @@ export const GameCanvas = ({
       className="fixed inset-0 m-0 block w-screen overflow-hidden bg-center bg-no-repeat"
       style={{
         backgroundImage: `url(${getBackdropUrl()})`,
-        backgroundSize: "cover",
+        backgroundSize: "auto 100%",
         backgroundRepeat: "no-repeat",
-        backgroundPosition: "center 30%",
+        backgroundPosition: "center top",
         backgroundColor: "#171923",
         height: "100dvh",
       }}
@@ -1301,22 +1301,21 @@ export const GameCanvas = ({
             top: layoutState.roadTopY,
             height: layoutState.roadBottomY - layoutState.roadTopY,
             background: gameWon
-              ? "linear-gradient(to top, rgba(88,28,135,1) 0%, rgba(107,33,168,0.95) 40%, rgba(126,34,206,0.6) 70%, rgba(147,51,234,0) 100%)"
-              : "linear-gradient(to top, rgba(38,35,30,1) 0%, rgba(30,27,24,0.98) 35%, rgba(20,18,14,0.82) 58%, rgba(10,8,5,0.4) 78%, rgba(0,0,0,0) 100%)",
-            boxShadow: "0 -4px 12px rgba(0,0,0,0.15)",
+              ? "linear-gradient(to bottom, rgba(88,28,135,1) 0%, rgba(107,33,168,1) 100%)"
+              : "linear-gradient(to bottom, rgba(42,39,35,0.98) 0%, rgba(36,33,29,1) 50%, rgba(28,25,22,1) 100%)",
+            boxShadow: "0 -6px 20px rgba(0,0,0,0.5)",
           }}
         >
-          {/* Far curb strip at top of road (opposite side where bullseye sits) */}
+          {/* Far curb strip — the opposite curb where the bullseye lives */}
           <div
             className="absolute left-0 right-0 top-0"
             style={{
-              height: Math.max(8, layoutState.screenH * 0.01),
+              height: Math.max(12, layoutState.screenH * 0.016),
               background: gameWon
-                ? "linear-gradient(180deg, rgba(253,224,71,0.5) 0%, rgba(202,138,4,0.2) 100%)"
-                : "linear-gradient(180deg, rgba(200,210,220,0.5) 0%, rgba(148,163,184,0.2) 100%)",
-              borderBottom: gameWon
-                ? "1px solid rgba(255,255,255,0.2)"
-                : "1px solid rgba(255,255,255,0.15)",
+                ? "linear-gradient(180deg, #fde047 0%, #ca8a04 100%)"
+                : "linear-gradient(180deg, #d1d9e0 0%, #8a9299 100%)",
+              borderBottom: "2px solid rgba(255,255,255,0.3)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
             }}
           />
 
