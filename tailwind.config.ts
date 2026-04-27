@@ -73,15 +73,6 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "ball-throw": {
-          "0%": { transform: "translateY(0) scale(1)" },
-          "50%": { transform: "translateY(-300px) scale(0.8)" },
-          "100%": { transform: "translateY(0) scale(1)" },
-        },
-        "car-move": {
-          "0%": { transform: "translateX(-100%)" },
-          "100%": { transform: "translateX(100vw)" },
-        },
         "confetti-fall": {
           "0%": { transform: "translateY(-100vh) rotate(0deg)", opacity: "1" },
           "100%": { transform: "translateY(100vh) rotate(720deg)", opacity: "0" },
@@ -99,8 +90,6 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "ball-throw": "ball-throw 1.5s var(--transition-bounce)",
-        "car-move": "car-move 4s linear infinite",
         "confetti-fall": "confetti-fall 3s linear forwards",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "bounce-in": "bounce-in 0.5s var(--transition-bounce)",
